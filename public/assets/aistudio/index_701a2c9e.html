@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Тренажёр по статистике (А. Д. Наследов) — Вариант 1 и Вариант 3</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <h1>📊 Статистика: Интерактивный тренажёр (по А. Д. Наследову)</h1>
+      <p>Пошаговый разбор Варианта 1 (Марина Жукурмало) и Варианта 3 + Лаборатория степеней свободы (df) + Словарь терминов</p>
+    </div>
+    <div class="top-actions">
+      <button class="btn btn-accent" onclick="window.switchTab('glossary')">📖 Словарь Наследова</button>
+      <button class="btn btn-warning" onclick="window.switchTab('df_lab')">🎓 Степени свободы (df)</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <nav class="nav-tabs">
+      <button class="btn tab-btn active" data-tab="trainer" onclick="window.switchTab('trainer')">1. Пошаговый тренажёр (№1–9)</button>
+      <button class="btn tab-btn" data-tab="compare" onclick="window.switchTab('compare')">2. ⚖️ Вариант 1 vs Вариант 3 рядом</button>
+      <button class="btn tab-btn" data-tab="df_lab" onclick="window.switchTab('df_lab')">3. 🎓 Степени свободы (df) и χ²</button>
+      <button class="btn tab-btn" data-tab="tests" onclick="window.switchTab('tests')">4. 📝 Тестовые задания (№10–13)</button>
+      <button class="btn tab-btn" data-tab="glossary" onclick="window.switchTab('glossary')">5. 📖 Словарь терминов Наследова</button>
+    </nav>
+
+    <main id="app-root"></main>
+  </div>
+
+  <!-- Модальное окно словаря Наследова -->
+  <div id="glossary-modal" class="modal-backdrop" onclick="if(event.target===this) window.closeGlossaryModal()">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="glossary-modal-title" style="color:var(--primary);">Определение термина</h3>
+        <button class="btn" onclick="window.closeGlossaryModal()">✕ Закрыть</button>
+      </div>
+      <div id="glossary-modal-body"></div>
+    </div>
+  </div>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

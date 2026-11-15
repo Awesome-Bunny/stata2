@@ -1,11 +1,23 @@
-<div align="center">
+# СтатПрактикум — тренажёр по статистике (А. Д. Наследов)
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+Интерактивный веб-тренажёр для подготовки к экзамену по математической статистике (задания №1–13, лаборатория степеней свободы `df` и `χ²`, пошаговый режим и режим без шагов с черновиком, карточки №10–13, экзамен на время, генератор вариантов и словарь терминов по учебнику А. Д. Наследова).
 
-  <h1>Built with AI Studio</h2>
+## Как получить публичную ссылку для запуска на GitHub (GitHub Pages)
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+В проекте уже настроен автоматический деплой (`.github/workflows/deploy.yml`) и относительный `base: './'` для корректной работы по адресу репозитория.
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+1. Выгрузите проект в свой репозиторий на GitHub.
+2. Откройте репозиторий на GitHub и перейдите в **Settings → Pages**.
+3. В разделе **Build and deployment → Source** выберите **GitHub Actions**.
+4. Откройте вкладку **Actions** (если сборка ещё не запустилась автоматически, нажмите **Deploy to GitHub Pages → Run workflow**).
+5. После завершения сборки на странице **Settings → Pages** и в шапке справа (**About / Deployments**) появится готовая ссылка для запуска вида:
+   `https://<ваш-логин>.github.io/<название-репозитория>/`
 
-</div>
+## Локальный запуск
+
+```bash
+npm install
+npm run dev
+```
+
+Приложение откроется по адресу `http://localhost:3000`.
