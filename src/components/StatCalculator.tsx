@@ -12,6 +12,7 @@ interface StatCalculatorProps {
   onClose: () => void;
   activeTargetLabel?: string | null;
   onInsertValue?: (formattedValue: string) => void;
+  strictExamMode?: boolean;
 }
 
 /**
@@ -115,6 +116,7 @@ export const StatCalculator: React.FC<StatCalculatorProps> = ({
   onClose,
   activeTargetLabel,
   onInsertValue,
+  strictExamMode = false,
 }) => {
   const [expr, setExpr] = useState('');
   const [displayResult, setDisplayResult] = useState<string>('0');
@@ -278,11 +280,15 @@ export const StatCalculator: React.FC<StatCalculatorProps> = ({
       </div>
 
       {/* Stat Quick Functions */}
-      <div className="px-3 pt-2.5 pb-1 grid grid-cols-4 gap-1.5 bg-[#F8FAFC] border-b border-[#E2E8F0]">
+      <div
+        className={`px-3 pt-2.5 pb-1 grid gap-1.5 bg-[#F8FAFC] border-b border-[#E2E8F0] ${
+          strictExamMode ? 'grid-cols-2' : 'grid-cols-4'
+        }`}
+      >
         <button
           type="button"
           onClick={() => applyUnary((x) => x * x, 'x²')}
-          title="Возвести в квадрат (например, σ → σ²)"
+          title={strictExamMode ? 'Квадрат числа' : 'Возвести в квадрат (например, σ → σ²)'}
           className="py-1.5 rounded-md bg-white border border-[#CBD5E1] text-xs font-mono font-semibold text-[#1D4ED8] hover:bg-[#EFF6FF] transition-colors cursor-pointer"
         >
           x²
@@ -290,27 +296,31 @@ export const StatCalculator: React.FC<StatCalculatorProps> = ({
         <button
           type="button"
           onClick={() => applyUnary((x) => (x >= 0 ? Math.sqrt(x) : null), '√')}
-          title="Квадратный корень (например, √n)"
+          title={strictExamMode ? 'Квадратный корень' : 'Квадратный корень (например, √n)'}
           className="py-1.5 rounded-md bg-white border border-[#CBD5E1] text-xs font-mono font-semibold text-[#1D4ED8] hover:bg-[#EFF6FF] transition-colors cursor-pointer"
         >
           √x
         </button>
-        <button
-          type="button"
-          onClick={() => applyUnary((x) => (1 + x) / 2, '(1+τ)/2')}
-          title="Кендалл «увеличится»: (1 + τ) / 2"
-          className="py-1.5 rounded-md bg-white border border-[#CBD5E1] text-[11px] font-mono font-semibold text-[#059669] hover:bg-[#ECFDF5] transition-colors cursor-pointer"
-        >
-          (1+τ)/2
-        </button>
-        <button
-          type="button"
-          onClick={() => applyUnary((x) => (1 - x) / 2, '(1−τ)/2')}
-          title="Кендалл «уменьшится»: (1 − τ) / 2"
-          className="py-1.5 rounded-md bg-white border border-[#CBD5E1] text-[11px] font-mono font-semibold text-[#D97706] hover:bg-[#FFFBEB] transition-colors cursor-pointer"
-        >
-          (1−τ)/2
-        </button>
+        {!strictExamMode && (
+          <>
+            <button
+              type="button"
+              onClick={() => applyUnary((x) => (1 + x) / 2, '(1+τ)/2')}
+              title="Кендалл «увеличится»: (1 + τ) / 2"
+              className="py-1.5 rounded-md bg-white border border-[#CBD5E1] text-[11px] font-mono font-semibold text-[#059669] hover:bg-[#ECFDF5] transition-colors cursor-pointer"
+            >
+              (1+τ)/2
+            </button>
+            <button
+              type="button"
+              onClick={() => applyUnary((x) => (1 - x) / 2, '(1−τ)/2')}
+              title="Кендалл «уменьшится»: (1 − τ) / 2"
+              className="py-1.5 rounded-md bg-white border border-[#CBD5E1] text-[11px] font-mono font-semibold text-[#D97706] hover:bg-[#FFFBEB] transition-colors cursor-pointer"
+            >
+              (1−τ)/2
+            </button>
+          </>
+        )}
       </div>
 
       {/* Keypad */}

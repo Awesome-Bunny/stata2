@@ -5,11 +5,15 @@ import {
   BookOpen,
   Calculator,
   ClipboardCheck,
+  Clock,
   Flame,
   FlaskConical,
   GraduationCap,
   Layers,
+  Lock,
+  Repeat,
   RotateCcw,
+  Sigma,
   Target,
   Timer,
 } from 'lucide-react';
@@ -18,12 +22,15 @@ import { ComparisonView } from './components/ComparisonView';
 import { DfChi2Lab } from './components/DfChi2Lab';
 import { DirectTrainer } from './components/DirectTrainer';
 import { ExamSimulator } from './components/ExamSimulator';
+import { FormulasView } from './components/FormulasView';
 import { GlossaryModal } from './components/GlossaryModal';
 import { GlossaryView } from './components/GlossaryView';
 import { ProgressAnalyticsView } from './components/ProgressAnalyticsView';
 import { StatCalculator } from './components/StatCalculator';
 import { StepTrainer } from './components/StepTrainer';
+import { TaskDrillTrainer } from './components/TaskDrillTrainer';
 import { TestTrainer } from './components/TestTrainer';
+import { TimeParamTrainer } from './components/TimeParamTrainer';
 import { useTrainerProgress } from './hooks/useTrainerProgress';
 import { AppTab } from './types/stats';
 
@@ -33,6 +40,9 @@ export default function App() {
   const [calcOpen, setCalcOpen] = useState(false);
   const [calcTargetLabel, setCalcTargetLabel] = useState<string | null>(null);
   const [forceGeneratedSignal, setForceGeneratedSignal] = useState(0);
+  const [drillTaskNum, setDrillTaskNum] = useState<number>(1);
+  const [drillTaskSignal, setDrillTaskSignal] = useState<number>(0);
+  const [isExamStrictLocked, setIsExamStrictLocked] = useState(false);
   const calcApplyRef = useRef<((val: string) => void) | null>(null);
 
   const handleRegisterCalcTarget = useCallback(
@@ -43,11 +53,30 @@ export default function App() {
     []
   );
 
-  const handleTabChange = useCallback((tab: AppTab) => {
-    setActiveTab(tab);
-    setCalcTargetLabel(null);
-    calcApplyRef.current = null;
+  const handleOpenTerm = useCallback(
+    (key: string) => {
+      if (isExamStrictLocked) return;
+      setActiveTermKey(key);
+    },
+    [isExamStrictLocked]
+  );
+
+  const handleStrictLockChange = useCallback((locked: boolean) => {
+    setIsExamStrictLocked(locked);
+    if (locked) {
+      setActiveTermKey(null);
+    }
   }, []);
+
+  const handleTabChange = useCallback(
+    (tab: AppTab) => {
+      if (isExamStrictLocked && tab !== 'exam') return;
+      setActiveTab(tab);
+      setCalcTargetLabel(null);
+      calcApplyRef.current = null;
+    },
+    [isExamStrictLocked]
+  );
 
   const {
     state: progress,
@@ -112,9 +141,21 @@ export default function App() {
       : null;
   }, [progress.dailyStats]);
 
+  const handleOpenDrillForTask = useCallback(
+    (taskNum: number) => {
+      setDrillTaskNum(taskNum);
+      setDrillTaskSignal((n) => n + 1);
+      handleTabChange('drill');
+    },
+    [handleTabChange]
+  );
+
   const navItems: { id: AppTab; label: string; icon: typeof Layers }[] = [
     { id: 'trainer', label: 'По шагам', icon: Layers },
     { id: 'direct', label: 'Без шагов', icon: Target },
+    { id: 'drill', label: 'Зубрёжка', icon: Repeat },
+    { id: 'time_t', label: 'Время t', icon: Clock },
+    { id: 'formulas', label: 'Формулы', icon: Sigma },
     { id: 'compare', label: 'Сравнение', icon: ArrowLeftRight },
     { id: 'df_lab', label: 'Степени df', icon: FlaskConical },
     { id: 'tests', label: 'Тесты', icon: ClipboardCheck },
@@ -127,7 +168,7 @@ export default function App() {
     <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-[#0F172A]">
       {/* Top 3-Zone Navigation Header */}
       <header className="sticky top-0 z-40 bg-white border-b border-[#E2E8F0]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
           {/* Zone 1: Brand */}
           <div className="flex items-center gap-2.5 shrink-0 whitespace-nowrap">
             <div className="w-9 h-9 rounded-lg bg-[#1D4ED8] text-white flex items-center justify-center shrink-0">
@@ -137,7 +178,7 @@ export default function App() {
               <div className="text-sm font-bold text-[#0F172A] leading-tight">
                 СтатПрактикум
               </div>
-              <div className="text-[11px] text-[#64748B] leading-tight">
+              <div className="hidden 2xl:block text-[11px] text-[#64748B] leading-tight">
                 По учебнику А. Д. Наследова
               </div>
             </div>
@@ -146,23 +187,36 @@ export default function App() {
           {/* Zone 2: Desktop Navigation Tabs */}
           <nav
             aria-label="Основные разделы"
-            className="hidden xl:flex items-center gap-1"
+            className="hidden xl:flex items-center gap-0.5 overflow-x-auto"
           >
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
+              const isLockedItem = isExamStrictLocked && item.id !== 'exam';
               return (
                 <button
                   key={item.id}
                   type="button"
+                  disabled={isLockedItem}
                   onClick={() => handleTabChange(item.id)}
-                  className={`inline-flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap shrink-0 transition-colors cursor-pointer ${
-                    isActive
-                      ? 'bg-[#EFF6FF] text-[#1D4ED8]'
-                      : 'text-[#475569] hover:bg-[#F1F5F9] hover:text-[#0F172A]'
+                  title={
+                    isLockedItem
+                      ? 'Заблокировано на время строгого экзамена'
+                      : undefined
+                  }
+                  className={`inline-flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
+                    isLockedItem
+                      ? 'text-[#94A3B8] opacity-50 cursor-not-allowed'
+                      : isActive
+                      ? 'bg-[#EFF6FF] text-[#1D4ED8] cursor-pointer'
+                      : 'text-[#475569] hover:bg-[#F1F5F9] hover:text-[#0F172A] cursor-pointer'
                   }`}
                 >
-                  <Icon className="w-3.5 h-3.5" />
+                  {isLockedItem ? (
+                    <Lock className="w-3 h-3" />
+                  ) : (
+                    <Icon className="w-3.5 h-3.5" />
+                  )}
                   <span>{item.label}</span>
                   {item.id === 'tests' && mistakeCount > 0 && (
                     <span className="ml-0.5 font-mono text-[11px] text-[#DC2626] tabular-nums">
@@ -176,12 +230,21 @@ export default function App() {
 
           {/* Zone 3: Progress & Quick Glossary */}
           <div className="flex items-center gap-2 shrink-0 whitespace-nowrap">
-            <div className="hidden sm:flex items-center gap-2 text-xs text-[#475569] tabular-nums mr-1">
+            <div className="hidden 2xl:flex items-center gap-2 text-xs text-[#475569] tabular-nums mr-1">
               <button
                 type="button"
-                onClick={() => setActiveTab('stats')}
-                title="Открыть графики прогресса и точности"
-                className="hover:text-[#1D4ED8] transition-colors cursor-pointer"
+                disabled={isExamStrictLocked}
+                onClick={() => handleTabChange('stats')}
+                title={
+                  isExamStrictLocked
+                    ? 'Заблокировано на время строгого экзамена'
+                    : 'Открыть графики прогресса и точности'
+                }
+                className={`transition-colors ${
+                  isExamStrictLocked
+                    ? 'opacity-50 cursor-not-allowed'
+                    : 'hover:text-[#1D4ED8] cursor-pointer'
+                }`}
               >
                 Решено: <strong className="text-[#0F172A]">{solvedTotal}</strong>
                 {accuracyPct !== null && (
@@ -196,8 +259,13 @@ export default function App() {
                   <span>·</span>
                   <button
                     type="button"
-                    onClick={() => setActiveTab('tests')}
-                    className="text-[#DC2626] font-semibold hover:underline cursor-pointer"
+                    disabled={isExamStrictLocked}
+                    onClick={() => handleTabChange('tests')}
+                    className={`text-[#DC2626] font-semibold ${
+                      isExamStrictLocked
+                        ? 'opacity-50 cursor-not-allowed'
+                        : 'hover:underline cursor-pointer'
+                    }`}
                   >
                     Ошибок: {mistakeCount}
                   </button>
@@ -216,23 +284,46 @@ export default function App() {
               }`}
             >
               <Calculator className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">Калькулятор</span>
+              <span className="hidden 2xl:inline">Калькулятор</span>
             </button>
 
             <button
               type="button"
+              disabled={isExamStrictLocked}
               onClick={() => handleTabChange('glossary')}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#F8FAFC] border border-[#CBD5E1] text-[#1D4ED8] hover:bg-[#EFF6FF] transition-colors cursor-pointer"
+              title={
+                isExamStrictLocked
+                  ? 'Справочник заблокирован на время строгого экзамена'
+                  : 'Открыть словарь терминов А. Д. Наследова'
+              }
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+                isExamStrictLocked
+                  ? 'bg-[#F1F5F9] border-[#E2E8F0] text-[#94A3B8] opacity-60 cursor-not-allowed'
+                  : 'bg-[#F8FAFC] border-[#CBD5E1] text-[#1D4ED8] hover:bg-[#EFF6FF] cursor-pointer'
+              }`}
             >
-              <BookOpen className="w-3.5 h-3.5" />
-              <span>Словарь</span>
+              {isExamStrictLocked ? (
+                <Lock className="w-3.5 h-3.5" />
+              ) : (
+                <BookOpen className="w-3.5 h-3.5" />
+              )}
+              <span>{isExamStrictLocked ? 'Справочник закрыт' : 'Словарь'}</span>
             </button>
 
             <button
               type="button"
+              disabled={isExamStrictLocked}
               onClick={resetAllProgress}
-              title="Сбросить весь сохранённый прогресс"
-              className="p-1.5 rounded-lg text-[#64748B] hover:text-[#DC2626] hover:bg-[#FEF2F2] transition-colors cursor-pointer"
+              title={
+                isExamStrictLocked
+                  ? 'Недоступно во время строгого экзамена'
+                  : 'Сбросить весь сохранённый прогресс'
+              }
+              className={`p-1.5 rounded-lg transition-colors ${
+                isExamStrictLocked
+                  ? 'text-[#CBD5E1] cursor-not-allowed'
+                  : 'text-[#64748B] hover:text-[#DC2626] hover:bg-[#FEF2F2] cursor-pointer'
+              }`}
             >
               <RotateCcw className="w-4 h-4" />
             </button>
@@ -245,18 +336,26 @@ export default function App() {
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
+              const isLockedItem = isExamStrictLocked && item.id !== 'exam';
               return (
                 <button
                   key={item.id}
                   type="button"
+                  disabled={isLockedItem}
                   onClick={() => handleTabChange(item.id)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap shrink-0 transition-colors cursor-pointer ${
-                    isActive
-                      ? 'bg-[#1D4ED8] text-white'
-                      : 'bg-white border border-[#E2E8F0] text-[#475569]'
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
+                    isLockedItem
+                      ? 'bg-[#F1F5F9] border border-[#E2E8F0] text-[#94A3B8] opacity-50 cursor-not-allowed'
+                      : isActive
+                      ? 'bg-[#1D4ED8] text-white cursor-pointer'
+                      : 'bg-white border border-[#E2E8F0] text-[#475569] cursor-pointer'
                   }`}
                 >
-                  <Icon className="w-3.5 h-3.5" />
+                  {isLockedItem ? (
+                    <Lock className="w-3 h-3" />
+                  ) : (
+                    <Icon className="w-3.5 h-3.5" />
+                  )}
                   <span>{item.label}</span>
                 </button>
               );
@@ -297,6 +396,33 @@ export default function App() {
           />
         )}
 
+        {activeTab === 'drill' && (
+          <TaskDrillTrainer
+            initialTaskNum={drillTaskNum}
+            initialTaskSignal={drillTaskSignal}
+            onOpenTerm={(key) => setActiveTermKey(key)}
+            onOpenCalculator={() => setCalcOpen(true)}
+            onRegisterCalcTarget={handleRegisterCalcTarget}
+            onOpenFormulasForTask={() => handleTabChange('formulas')}
+            onRecordAttempt={(module, isCorrect, isGenerated) =>
+              recordPracticeAttempt(module, isCorrect, isGenerated)
+            }
+            onTestResult={markTestResult}
+          />
+        )}
+
+        {activeTab === 'time_t' && (
+          <TimeParamTrainer
+            onRecordAttempt={(isCorrect) =>
+              recordPracticeAttempt('steps', isCorrect, true)
+            }
+          />
+        )}
+
+        {activeTab === 'formulas' && (
+          <FormulasView onDrillTask={handleOpenDrillForTask} />
+        )}
+
         {activeTab === 'compare' && (
           <ComparisonView onOpenTerm={(key) => setActiveTermKey(key)} />
         )}
@@ -334,11 +460,12 @@ export default function App() {
           <ExamSimulator
             progress={progress}
             onCreateGeneratedTicket={() => createNewGeneratedTicket('exam')}
-            onOpenTerm={(key) => setActiveTermKey(key)}
+            onOpenTerm={handleOpenTerm}
             onOpenCalculator={() => setCalcOpen(true)}
             onRegisterCalcTarget={handleRegisterCalcTarget}
             onRecordExam={recordExamAttempt}
             onAddMistakes={addMistakesBatch}
+            onStrictLockChange={handleStrictLockChange}
           />
         )}
 
@@ -352,7 +479,7 @@ export default function App() {
         )}
 
         {activeTab === 'glossary' && (
-          <GlossaryView onOpenTerm={(key) => setActiveTermKey(key)} />
+          <GlossaryView onOpenTerm={handleOpenTerm} />
         )}
       </main>
 
@@ -360,6 +487,7 @@ export default function App() {
         isOpen={calcOpen}
         onClose={() => setCalcOpen(false)}
         activeTargetLabel={calcTargetLabel}
+        strictExamMode={isExamStrictLocked}
         onInsertValue={
           calcTargetLabel
             ? (val) => {
@@ -370,9 +498,11 @@ export default function App() {
       />
 
       <GlossaryModal
-        termKey={activeTermKey}
+        termKey={isExamStrictLocked ? null : activeTermKey}
         onClose={() => setActiveTermKey(null)}
-        onSelectTerm={(key) => setActiveTermKey(key)}
+        onSelectTerm={(key) => {
+          if (!isExamStrictLocked) setActiveTermKey(key);
+        }}
         onOpenFullGlossary={() => handleTabChange('glossary')}
       />
     </div>

@@ -509,3 +509,24 @@ export function generateProceduralTestDeck(count: 4 | 8 = 4): TestQuestion[] {
 
   return pickedFns.map((fn) => fn());
 }
+
+export function generateTestQuestionByNum(num: 10 | 11 | 12 | 13): TestQuestion {
+  const matchPrefix: Record<10 | 11 | 12 | 13, string[]> = {
+    10: ['gen_q10_scale', 'gen_q10_dir'],
+    11: ['gen_q11_dich', 'gen_df_cont'],
+    12: ['gen_q12_tval', 'gen_q12_tdef', 'gen_kendall_prob'],
+    13: ['gen_q13_bounds', 'gen_q13_scales'],
+  };
+
+  let lastDeck: TestQuestion[] = [];
+  for (let attempt = 0; attempt < 4; attempt++) {
+    lastDeck = generateProceduralTestDeck(8);
+    const candidates = lastDeck.filter((q) =>
+      matchPrefix[num].some((prefix) => q.id.startsWith(prefix))
+    );
+    if (candidates.length > 0) {
+      return pickRandom(candidates);
+    }
+  }
+  return pickRandom(lastDeck);
+}

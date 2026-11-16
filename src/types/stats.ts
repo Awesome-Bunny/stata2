@@ -1,6 +1,9 @@
 export type AppTab =
   | 'trainer'
   | 'direct'
+  | 'drill'
+  | 'time_t'
+  | 'formulas'
   | 'compare'
   | 'df_lab'
   | 'tests'
@@ -10,6 +13,36 @@ export type AppTab =
   | 'glossary';
 
 export type VariantSource = 'v1' | 'v3' | 'generated';
+
+export type FormulaBlockId =
+  | 'descriptive'
+  | 'sampling'
+  | 'anova'
+  | 'chi2'
+  | 'correlation'
+  | 'contingency'
+  | 'regression'
+  | 'comparison';
+
+export interface FormulaVariable {
+  symbol: string;
+  symbolTex?: string;
+  desc: string;
+}
+
+export interface FormulaEntry {
+  id: string;
+  blockId: FormulaBlockId;
+  blockTitle: string;
+  title: string;
+  formulaTex: string;
+  application: string;
+  triggerPhrases: string[];
+  whatWeFind: string;
+  variables: FormulaVariable[];
+  examTasks?: number[];
+  note?: string;
+}
 
 export type GlossarySourceStatus = 'exact' | 'adapted' | 'course';
 
@@ -52,6 +85,8 @@ export interface TaskItem {
   points: string;
   pointsNum: number;
   text: string;
+  examText?: string;
+  examTextShuffled?: string;
   trap: string;
   formulaSummary: string;
   formulaTex: string;
@@ -70,6 +105,7 @@ export interface TestQuestion {
   topic: 'sampling' | 'scales' | 'correlation' | 'df' | 'models';
   points: number;
   question: string;
+  examQuestion?: string;
   options: TestOption[];
 }
 

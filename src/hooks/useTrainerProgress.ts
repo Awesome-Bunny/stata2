@@ -103,6 +103,39 @@ function loadInitialState(): TrainerProgressState {
       delete solvedDirect['direct_v1_t1'];
     }
 
+    // Clean up any stale Variant 3 Task 1 attempts/mistakes from old t=11/84348 state
+    if (
+      mistakes['v3_t1_s1']?.correctAnswer === '11' ||
+      stepAttempts['v3_t1_s1']?.value?.trim() === '11'
+    ) {
+      delete mistakes['v3_t1_s1'];
+      delete stepAttempts['v3_t1_s1'];
+      delete solvedSteps['v3_t1_s1'];
+    }
+
+    if (
+      mistakes['v3_t1_s2']?.correctAnswer === '25014' ||
+      stepAttempts['v3_t1_s2']?.value?.replace(/\s+/g, '') === '25014'
+    ) {
+      delete mistakes['v3_t1_s2'];
+      delete stepAttempts['v3_t1_s2'];
+      delete solvedSteps['v3_t1_s2'];
+    }
+
+    if (
+      mistakes['v3_t1_s3']?.correctAnswer === '84348' ||
+      stepAttempts['v3_t1_s3']?.value?.replace(/\s+/g, '') === '84348'
+    ) {
+      delete mistakes['v3_t1_s3'];
+      delete stepAttempts['v3_t1_s3'];
+      delete solvedSteps['v3_t1_s3'];
+    }
+
+    if (mistakes['direct_v3_t1']?.correctAnswer?.includes('84348')) {
+      delete mistakes['direct_v3_t1'];
+      delete solvedDirect['direct_v3_t1'];
+    }
+
     const rawTickets = Array.isArray(parsed.savedGeneratedTickets)
       ? parsed.savedGeneratedTickets
           .filter((t) => t && Array.isArray(t.tasks) && Array.isArray(t.tests))

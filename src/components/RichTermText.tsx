@@ -6,6 +6,7 @@ import { MathFormula } from './MathFormula';
 interface RichTermTextProps {
   text: string;
   onOpenTerm: (termKey: string) => void;
+  disableTerms?: boolean;
 }
 
 type Segment =
@@ -93,6 +94,7 @@ function tokenizeRichText(input: string): Segment[] {
 export const RichTermText: React.FC<RichTermTextProps> = ({
   text,
   onOpenTerm,
+  disableTerms = false,
 }) => {
   const segments = useMemo(() => tokenizeRichText(text), [text]);
 
@@ -104,6 +106,9 @@ export const RichTermText: React.FC<RichTermTextProps> = ({
         }
         if (seg.type === 'math') {
           return <MathFormula key={`m-${idx}`} tex={seg.tex} />;
+        }
+        if (disableTerms) {
+          return <React.Fragment key={`t-${idx}`}>{seg.content}</React.Fragment>;
         }
         return (
           <button
