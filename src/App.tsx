@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
+  Activity,
   ArrowLeftRight,
   BarChart3,
   BookOpen,
@@ -19,6 +20,7 @@ import {
 } from 'lucide-react';
 import { CardMarathonTrainer } from './components/CardMarathonTrainer';
 import { ComparisonView } from './components/ComparisonView';
+import { CorrelationLab } from './components/CorrelationLab';
 import { DfChi2Lab } from './components/DfChi2Lab';
 import { DirectTrainer } from './components/DirectTrainer';
 import { ExamSimulator } from './components/ExamSimulator';
@@ -158,6 +160,7 @@ export default function App() {
     { id: 'formulas', label: 'Формулы', icon: Sigma },
     { id: 'compare', label: 'Сравнение', icon: ArrowLeftRight },
     { id: 'df_lab', label: 'Степени df', icon: FlaskConical },
+    { id: 'correlation', label: 'Корреляция', icon: Activity },
     { id: 'tests', label: 'Тесты', icon: ClipboardCheck },
     { id: 'cards', label: 'Карточки', icon: Flame },
     { id: 'exam', label: 'Экзамен', icon: Timer },
@@ -168,7 +171,7 @@ export default function App() {
     <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-[#0F172A]">
       {/* Top 3-Zone Navigation Header */}
       <header className="sticky top-0 z-40 bg-white border-b border-[#E2E8F0]">
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-2.5">
           {/* Zone 1: Brand */}
           <div className="flex items-center gap-2.5 shrink-0 whitespace-nowrap">
             <div className="w-9 h-9 rounded-lg bg-[#1D4ED8] text-white flex items-center justify-center shrink-0">
@@ -432,6 +435,15 @@ export default function App() {
             progress={progress}
             onOpenTerm={(key) => setActiveTermKey(key)}
             onDfDrillResult={markDfDrillResult}
+          />
+        )}
+
+        {activeTab === 'correlation' && (
+          <CorrelationLab
+            onOpenTerm={handleOpenTerm}
+            onRecordAttempt={(isCorrect) =>
+              recordPracticeAttempt('tests', isCorrect, true)
+            }
           />
         )}
 

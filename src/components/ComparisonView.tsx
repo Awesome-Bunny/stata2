@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ArrowLeftRight, AlertTriangle } from 'lucide-react';
 import { TASKS_DATA } from '../data/nasledovData';
 import { MathFormula } from './MathFormula';
@@ -32,23 +32,107 @@ const TEST_DIFFS = [
 export const ComparisonView: React.FC<ComparisonViewProps> = ({
   onOpenTerm,
 }) => {
-  const v1 = TASKS_DATA.v1;
-  const v3 = TASKS_DATA.v3;
+  const [v1Target, setV1Target] = useState<'v1_stepanov' | 'v1'>('v1_stepanov');
+  const [v3Target, setV3Target] = useState<'v3_avdeeva' | 'v3_new' | 'v3'>('v3_avdeeva');
+
+  const v1 = v1Target === 'v1_stepanov' ? TASKS_DATA.v1_stepanov : TASKS_DATA.v1;
+  const v1Label =
+    v1Target === 'v1_stepanov'
+      ? 'Вариант 1 (печатный)'
+      : 'Вариант 1 (базовый)';
+
+  const v3 =
+    v3Target === 'v3_avdeeva'
+      ? TASKS_DATA.v3_avdeeva
+      : v3Target === 'v3_new'
+      ? TASKS_DATA.v3_new
+      : TASKS_DATA.v3;
+  const v3Label =
+    v3Target === 'v3_avdeeva'
+      ? 'Вариант 3 (печатный, 2026)'
+      : v3Target === 'v3_new'
+      ? 'Вариант 3 (печатный, 2027)'
+      : 'Вариант 3 (текстовый)';
 
   return (
     <div className="space-y-6">
-      <div className="bg-white border border-[#E2E8F0] rounded-xl p-6">
-        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#1D4ED8] mb-1">
-          <ArrowLeftRight className="w-4 h-4" />
-          <span>Сравнительная матрица</span>
+      <div className="bg-white border border-[#E2E8F0] rounded-xl p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#1D4ED8] mb-1">
+            <ArrowLeftRight className="w-4 h-4" />
+            <span>Сравнительная матрица</span>
+          </div>
+          <h2 className="text-xl font-bold text-[#0F172A]">
+            {v1Label} vs {v3Label} бок о бок
+          </h2>
+          <p className="text-sm text-[#475569] mt-1">
+            Сопоставление формул, условий и ловушек по всем заданиям №1–13, чтобы
+            вы не перепутали шаблон решения при смене номера билета.
+          </p>
         </div>
-        <h2 className="text-xl font-bold text-[#0F172A]">
-          Вариант 1 vs Вариант 3 бок о бок
-        </h2>
-        <p className="text-sm text-[#475569] mt-1">
-          Сопоставление формул, условий и ловушек по всем заданиям №1–13, чтобы
-          вы не перепутали шаблон решения при смене номера билета.
-        </p>
+
+        <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-2 shrink-0">
+          <div className="inline-flex rounded-lg border border-[#CBD5E1] bg-[#F8FAFC] p-0.5">
+            <button
+              type="button"
+              onClick={() => setV1Target('v1_stepanov')}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold cursor-pointer transition-colors ${
+                v1Target === 'v1_stepanov'
+                  ? 'bg-[#1D4ED8] text-white'
+                  : 'text-[#334155] hover:bg-[#F1F5F9]'
+              }`}
+            >
+              В1 (печатный)
+            </button>
+            <button
+              type="button"
+              onClick={() => setV1Target('v1')}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold cursor-pointer transition-colors ${
+                v1Target === 'v1'
+                  ? 'bg-[#1D4ED8] text-white'
+                  : 'text-[#334155] hover:bg-[#F1F5F9]'
+              }`}
+            >
+              В1 (базовый)
+            </button>
+          </div>
+
+          <div className="inline-flex rounded-lg border border-[#CBD5E1] bg-[#F8FAFC] p-0.5">
+            <button
+              type="button"
+              onClick={() => setV3Target('v3_avdeeva')}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold cursor-pointer transition-colors ${
+                v3Target === 'v3_avdeeva'
+                  ? 'bg-[#0284C7] text-white'
+                  : 'text-[#334155] hover:bg-[#F1F5F9]'
+              }`}
+            >
+              В3 (2026)
+            </button>
+            <button
+              type="button"
+              onClick={() => setV3Target('v3_new')}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold cursor-pointer transition-colors ${
+                v3Target === 'v3_new'
+                  ? 'bg-[#0284C7] text-white'
+                  : 'text-[#334155] hover:bg-[#F1F5F9]'
+              }`}
+            >
+              В3 (2027)
+            </button>
+            <button
+              type="button"
+              onClick={() => setV3Target('v3')}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold cursor-pointer transition-colors ${
+                v3Target === 'v3'
+                  ? 'bg-[#0284C7] text-white'
+                  : 'text-[#334155] hover:bg-[#F1F5F9]'
+              }`}
+            >
+              В3 (текст)
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="space-y-4">
@@ -74,7 +158,7 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({
                 {/* Variant 1 */}
                 <div className="p-4 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] space-y-2.5">
                   <div className="text-xs font-semibold uppercase tracking-wider text-[#1D4ED8]">
-                    Вариант 1 · {t1.points}
+                    {v1Label} · {t1.points}
                   </div>
                   <h4 className="text-sm font-bold text-[#0F172A]">
                     {t1.title}
@@ -96,7 +180,7 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({
                 {/* Variant 3 */}
                 <div className="p-4 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] space-y-2.5">
                   <div className="text-xs font-semibold uppercase tracking-wider text-[#0284C7]">
-                    Вариант 3 · {t3.points}
+                    {v3Label} · {t3.points}
                   </div>
                   <h4 className="text-sm font-bold text-[#0F172A]">
                     {t3.title}

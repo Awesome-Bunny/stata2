@@ -26,6 +26,7 @@ import {
   TrainerProgressState,
   VariantSource,
 } from '../types/stats';
+import { getDirectFields, resolveTaskDirectKind } from '../utils/directFields';
 import { stableIndexOrder, validateStepAnswer } from '../utils/validation';
 import { MathFormula } from './MathFormula';
 import { RichTermText } from './RichTermText';
@@ -52,147 +53,10 @@ interface DirectTrainerProps {
   ) => void;
 }
 
-interface DirectFieldSpec {
-  key: string;
-  label: string;
-  placeholder: string;
-  ans: string[];
-  tolerance: number;
-  isNumeric: boolean;
-}
-
 interface DirectTaskResult {
   isCorrect: boolean;
   expectedDisplay: string;
   message: string;
-}
-
-function getDirectFields(task: TaskItem): DirectFieldSpec[] {
-  const lastStep = task.steps[task.steps.length - 1];
-
-  if (task.num === 1) {
-    return [
-      {
-        key: 'main',
-        label: 'Итоговый прогноз показателя (руб.):',
-        placeholder: 'Введите сумму в рублях',
-        ans: lastStep.ans,
-        tolerance: lastStep.numericTolerance ?? 0.5,
-        isNumeric: true,
-      },
-    ];
-  }
-
-  if (task.num === 2) {
-    return [
-      {
-        key: 'main',
-        label: 'Доля влияния фактора η² (%):',
-        placeholder: 'Введите число в %',
-        ans: lastStep.ans,
-        tolerance: lastStep.numericTolerance ?? 0.05,
-        isNumeric: true,
-      },
-    ];
-  }
-
-  if (task.num === 3 && task.steps.length >= 3) {
-    return [
-      {
-        key: 'd95',
-        label: 'Погрешность Δ для 95,4% (t = 2):',
-        placeholder: 'Введите десятичное число',
-        ans: task.steps[1].ans,
-        tolerance: task.steps[1].numericTolerance ?? 0.02,
-        isNumeric: true,
-      },
-      {
-        key: 'd99',
-        label: 'Погрешность Δ для 99,7% (t = 3):',
-        placeholder: 'Введите десятичное число',
-        ans: task.steps[2].ans,
-        tolerance: task.steps[2].numericTolerance ?? 0.02,
-        isNumeric: true,
-      },
-    ];
-  }
-
-  if (task.num === 4) {
-    return [
-      {
-        key: 'chi2Crit',
-        label: 'Табличное значение χ²_табл (при p = 0,05):',
-        placeholder: 'Введите χ²_табл',
-        ans: task.steps[1]?.ans || [],
-        tolerance: task.steps[1]?.numericTolerance ?? 0.02,
-        isNumeric: true,
-      },
-      {
-        key: 'main',
-        label: 'Итоговый вывод о соответствии нормальному закону:',
-        placeholder: 'соответствует / не соответствует',
-        ans: lastStep.ans,
-        tolerance: 0.02,
-        isNumeric: false,
-      },
-    ];
-  }
-
-  if (task.num === 5) {
-    return [
-      {
-        key: 'main',
-        label: 'Доля респондентов (%) или вывод о невозможности оценки:',
-        placeholder: 'Введите % или слово «невозможно»',
-        ans: lastStep.ans,
-        tolerance: lastStep.numericTolerance ?? 0.15,
-        isNumeric: true,
-      },
-    ];
-  }
-
-  if (task.num === 6 || task.num === 8) {
-    return [
-      {
-        key: 'main',
-        label:
-          task.num === 6
-            ? 'Критерий / коэффициент для оценки связи:'
-            : 'Подходящий метод анализа или коэффициент:',
-        placeholder:
-          task.num === 6
-            ? 'Введите название критерия или коэффициента'
-            : 'Введите название метода или коэффициента',
-        ans: lastStep.ans,
-        tolerance: 0.02,
-        isNumeric: false,
-      },
-    ];
-  }
-
-  if (task.num === 7) {
-    return [
-      {
-        key: 'main',
-        label: 'Итоговая вероятность (доля от 0 до 1 или %):',
-        placeholder: 'Введите долю или %',
-        ans: lastStep.ans,
-        tolerance: lastStep.numericTolerance ?? 0.02,
-        isNumeric: true,
-      },
-    ];
-  }
-
-  return [
-    {
-      key: 'main',
-      label: 'Итоговый ответ:',
-      placeholder: 'Введите итоговое значение',
-      ans: lastStep.ans,
-      tolerance: lastStep.numericTolerance ?? 0.02,
-      isNumeric: true,
-    },
-  ];
 }
 
 const SCRATCHPAD_STORAGE_KEY = 'stat_direct_scratchpad_v1';
@@ -256,7 +120,10 @@ export const DirectTrainer: React.FC<DirectTrainerProps> = ({
 
   const tasks: TaskItem[] = useMemo(() => {
     if (variant === 'v1') return TASKS_DATA.v1;
+    if (variant === 'v1_stepanov') return TASKS_DATA.v1_stepanov;
     if (variant === 'v3') return TASKS_DATA.v3;
+    if (variant === 'v3_new') return TASKS_DATA.v3_new;
+    if (variant === 'v3_avdeeva') return TASKS_DATA.v3_avdeeva;
     return generatedTicket.tasks;
   }, [variant, generatedTicket]);
 
@@ -265,8 +132,16 @@ export const DirectTrainer: React.FC<DirectTrainerProps> = ({
       const ids = ['q10_both', 'q11_both', 'q12_v1', 'q13_v1'];
       return TEST_QUESTIONS_BANK.filter((q) => ids.includes(q.id));
     }
-    if (variant === 'v3') {
+    if (variant === 'v1_stepanov') {
+      const ids = ['q10_avdeeva', 'q11_both', 'q12_v1_stepanov', 'q13_v1'];
+      return TEST_QUESTIONS_BANK.filter((q) => ids.includes(q.id));
+    }
+    if (variant === 'v3' || variant === 'v3_new') {
       const ids = ['q10_both', 'q11_both', 'q12_v3', 'q13_v3'];
+      return TEST_QUESTIONS_BANK.filter((q) => ids.includes(q.id));
+    }
+    if (variant === 'v3_avdeeva') {
+      const ids = ['q10_avdeeva', 'q11_both', 'q12_v3', 'q13_v3'];
       return TEST_QUESTIONS_BANK.filter((q) => ids.includes(q.id));
     }
     return generatedTicket.tests;
@@ -274,9 +149,15 @@ export const DirectTrainer: React.FC<DirectTrainerProps> = ({
 
   const variantLabel =
     variant === 'v1'
-      ? 'Вариант 1'
+      ? 'Вариант 1 (базовый)'
+      : variant === 'v1_stepanov'
+      ? 'Вариант 1 (печатный)'
       : variant === 'v3'
-      ? 'Вариант 3'
+      ? 'Вариант 3 (текстовый)'
+      : variant === 'v3_new'
+      ? 'Вариант 3 (печатный, 2027)'
+      : variant === 'v3_avdeeva'
+      ? 'Вариант 3 (печатный, 2026)'
       : `Генератор (${generatedTicket.seedLabel})`;
 
   const solvedTasksCount = useMemo(
@@ -372,9 +253,10 @@ export const DirectTrainer: React.FC<DirectTrainerProps> = ({
     }));
 
     const allOk = fieldChecks.every((c) => c.ok);
+    const taskKind = resolveTaskDirectKind(task);
     const expectedDisplay =
       fields.length === 2
-        ? task.num === 4
+        ? taskKind === 'chi2_normality'
           ? `χ²_табл = ${fields[0].ans[0]} · Вывод: ${fields[1].ans[0]}`
           : `Δ(95,4%) = ${fields[0].ans[0]} · Δ(99,7%) = ${fields[1].ans[0]}`
         : fields[0].ans[0];
@@ -407,7 +289,7 @@ export const DirectTrainer: React.FC<DirectTrainerProps> = ({
             prompt:
               fields.length === 1
                 ? fields[0].label
-                : task.num === 4
+                : taskKind === 'chi2_normality'
                 ? 'χ²_табл и вывод о нормальности'
                 : 'Погрешность выборки Δ (95,4% и 99,7%)',
             correctAnswer: expectedDisplay,
@@ -505,6 +387,17 @@ export const DirectTrainer: React.FC<DirectTrainerProps> = ({
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
+              onClick={() => setVariant('v1_stepanov')}
+              className={`px-3.5 py-2 rounded-lg text-sm font-medium border transition-colors cursor-pointer ${
+                variant === 'v1_stepanov'
+                  ? 'bg-[#1D4ED8] text-white border-[#1D4ED8]'
+                  : 'bg-[#F8FAFC] text-[#334155] border-[#CBD5E1] hover:bg-[#F1F5F9]'
+              }`}
+            >
+              В1 (печатный)
+            </button>
+            <button
+              type="button"
               onClick={() => setVariant('v1')}
               className={`px-3.5 py-2 rounded-lg text-sm font-medium border transition-colors cursor-pointer ${
                 variant === 'v1'
@@ -512,7 +405,7 @@ export const DirectTrainer: React.FC<DirectTrainerProps> = ({
                   : 'bg-[#F8FAFC] text-[#334155] border-[#CBD5E1] hover:bg-[#F1F5F9]'
               }`}
             >
-              Вариант 1
+              В1 (базовый)
             </button>
             <button
               type="button"
@@ -523,7 +416,29 @@ export const DirectTrainer: React.FC<DirectTrainerProps> = ({
                   : 'bg-[#F8FAFC] text-[#334155] border-[#CBD5E1] hover:bg-[#F1F5F9]'
               }`}
             >
-              Вариант 3
+              В3 (текстовый)
+            </button>
+            <button
+              type="button"
+              onClick={() => setVariant('v3_new')}
+              className={`px-3.5 py-2 rounded-lg text-sm font-medium border transition-colors cursor-pointer ${
+                variant === 'v3_new'
+                  ? 'bg-[#1D4ED8] text-white border-[#1D4ED8]'
+                  : 'bg-[#F8FAFC] text-[#334155] border-[#CBD5E1] hover:bg-[#F1F5F9]'
+              }`}
+            >
+              В3 (печатный, 2027)
+            </button>
+            <button
+              type="button"
+              onClick={() => setVariant('v3_avdeeva')}
+              className={`px-3.5 py-2 rounded-lg text-sm font-medium border transition-colors cursor-pointer ${
+                variant === 'v3_avdeeva'
+                  ? 'bg-[#1D4ED8] text-white border-[#1D4ED8]'
+                  : 'bg-[#F8FAFC] text-[#334155] border-[#CBD5E1] hover:bg-[#F1F5F9]'
+              }`}
+            >
+              В3 (печатный, 2026)
             </button>
             <button
               type="button"
@@ -660,7 +575,9 @@ export const DirectTrainer: React.FC<DirectTrainerProps> = ({
             const showChiTable = Boolean(revealedChiTable[task.id]);
             const showSolution = Boolean(expandedSolutions[task.id]);
             const wasPreviouslySolved = Boolean(progress.solvedDirect[task.id]);
-            const hasCalcFormula = task.num !== 6 && task.num !== 8;
+            const taskKind = resolveTaskDirectKind(task);
+            const hasCalcFormula = taskKind !== 'method_choice';
+            const isChi2Task = taskKind === 'chi2_normality';
 
             return (
               <section
@@ -693,7 +610,7 @@ export const DirectTrainer: React.FC<DirectTrainerProps> = ({
                   </div>
 
                   <div className="flex items-center gap-3">
-                    {task.num === 4 && (
+                    {isChi2Task && (
                       <button
                         type="button"
                         onClick={() =>
@@ -753,7 +670,7 @@ export const DirectTrainer: React.FC<DirectTrainerProps> = ({
                   </div>
                 )}
 
-                {task.num === 4 && showChiTable && (
+                {isChi2Task && showChiTable && (
                   <div className="p-3.5 rounded-lg bg-[#F8FAFC] border border-[#CBD5E1] overflow-x-auto space-y-2">
                     <div className="text-xs font-semibold text-[#334155]">
                       Критические значения χ² Пирсона (Приложение 4 учебника Наследова)
@@ -901,8 +818,8 @@ export const DirectTrainer: React.FC<DirectTrainerProps> = ({
                                 if (field.isNumeric) {
                                   onRegisterCalcTarget(
                                     fields.length === 2
-                                      ? task.num === 4
-                                        ? `Без шагов №4 (χ²_табл)`
+                                      ? resolveTaskDirectKind(task) === 'chi2_normality'
+                                        ? `Без шагов №${task.num} (χ²_табл)`
                                         : `Без шагов №${task.num} (${field.key === 'd95' ? '95,4%' : '99,7%'})`
                                       : `Без шагов №${task.num}`,
                                     (calcVal) =>
@@ -927,8 +844,8 @@ export const DirectTrainer: React.FC<DirectTrainerProps> = ({
                                 onClick={() => {
                                   onRegisterCalcTarget(
                                     fields.length === 2
-                                      ? task.num === 4
-                                        ? `Без шагов №4 (χ²_табл)`
+                                      ? resolveTaskDirectKind(task) === 'chi2_normality'
+                                        ? `Без шагов №${task.num} (χ²_табл)`
                                         : `Без шагов №${task.num} (${field.key === 'd95' ? '95,4%' : '99,7%'})`
                                       : `Без шагов №${task.num}`,
                                     (calcVal) =>

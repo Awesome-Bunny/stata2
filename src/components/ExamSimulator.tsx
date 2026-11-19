@@ -90,14 +90,29 @@ function buildTicket(
 
   if (source === 'v1') {
     const v1TestIds = ['q10_both', 'q11_both', 'q12_v1', 'q13_v1'];
-    label = 'Вариант 1';
+    label = 'Вариант 1 (базовый)';
     tasks = TASKS_DATA.v1;
     tests = TEST_QUESTIONS_BANK.filter((q) => v1TestIds.includes(q.id));
+  } else if (source === 'v1_stepanov') {
+    const v1StepanovTestIds = ['q10_avdeeva', 'q11_both', 'q12_v1_stepanov', 'q13_v1'];
+    label = 'Вариант 1 (печатный бланк)';
+    tasks = TASKS_DATA.v1_stepanov;
+    tests = TEST_QUESTIONS_BANK.filter((q) => v1StepanovTestIds.includes(q.id));
   } else if (source === 'v3') {
     const v3TestIds = ['q10_both', 'q11_both', 'q12_v3', 'q13_v3'];
-    label = 'Вариант 3';
+    label = 'Вариант 3 (текстовый файл)';
     tasks = TASKS_DATA.v3;
     tests = TEST_QUESTIONS_BANK.filter((q) => v3TestIds.includes(q.id));
+  } else if (source === 'v3_new') {
+    const v3TestIds = ['q10_both', 'q11_both', 'q12_v3', 'q13_v3'];
+    label = 'Вариант 3 (печатный, 2027)';
+    tasks = TASKS_DATA.v3_new;
+    tests = TEST_QUESTIONS_BANK.filter((q) => v3TestIds.includes(q.id));
+  } else if (source === 'v3_avdeeva') {
+    const avdeevaTestIds = ['q10_avdeeva', 'q11_both', 'q12_v3', 'q13_v3'];
+    label = 'Вариант 3 (печатный, 2026)';
+    tasks = TASKS_DATA.v3_avdeeva;
+    tests = TEST_QUESTIONS_BANK.filter((q) => avdeevaTestIds.includes(q.id));
   } else {
     const gen = createGeneratedTicket();
     label = `Сгенерированный ${gen.seedLabel}`;
@@ -418,14 +433,29 @@ export const ExamSimulator: React.FC<ExamSimulatorProps> = ({
                     desc: 'Новые числа в заданиях №1–9 и случайная четвёрка тестов №10–13',
                   },
                   {
+                    id: 'v3_new',
+                    title: 'Вариант 3 (печатный бланк, прогноз 2027)',
+                    desc: 'Переставленные №1–9: η²=75%, k=11 (df=8), Δ(95,4%)=0,1, a=3200, тренд 2018–2023→2027',
+                  },
+                  {
+                    id: 'v3_avdeeva',
+                    title: 'Вариант 3 (печатный бланк, прогноз 2026)',
+                    desc: 'Тренд 2018–2023→2026 (t=11→84 348), η²=50%, df=11→19,675, 68%, №8 сопряжённость Пирсона, a=3200→33 200',
+                  },
+                  {
+                    id: 'v1_stepanov',
+                    title: 'Вариант 1 (печатный бланк, прогноз 2026)',
+                    desc: 'Тренд 2017–2023→2026 (t=6→63 798), η²=50%, Δ=0,10/0,15, df=8→15,507, 68%, №8 сопряжённость Пирсона, b=0,20→43 200',
+                  },
+                  {
                     id: 'v1',
-                    title: 'Вариант 1',
+                    title: 'Вариант 1 (базовый бланк, прогноз 2027)',
                     desc: 'Линейный тренд, df=3, χ²=8,74, +τ Кендалла, таблица 4×4',
                   },
                   {
                     id: 'v3',
-                    title: 'Вариант 3 (из текстового файла)',
-                    desc: 'Параболический тренд, df=11, 68,3% (1σ), −τ Кендалла',
+                    title: 'Вариант 3 (текстовый файл, 2016–2021)',
+                    desc: 'Параболический тренд 2016–2021 (t=15), df=11, 68,3% (1σ), a=3400→33 400',
                   },
                 ].map((opt) => (
                   <button

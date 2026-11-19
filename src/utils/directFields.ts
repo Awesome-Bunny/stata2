@@ -1,4 +1,4 @@
-import { TaskItem } from '../types/stats';
+import { TaskDirectKind, TaskItem } from '../types/stats';
 
 export interface DirectFieldSpec {
   key: string;
@@ -9,14 +9,27 @@ export interface DirectFieldSpec {
   isNumeric: boolean;
 }
 
+export function resolveTaskDirectKind(task: TaskItem): TaskDirectKind {
+  if (task.directKind) return task.directKind;
+  if (task.num === 1) return 'trend';
+  if (task.num === 2) return 'eta2';
+  if (task.num === 3) return task.steps.length >= 3 ? 'sampling_pair' : 'sampling_single';
+  if (task.num === 4) return 'chi2_normality';
+  if (task.num === 5) return 'normal_share';
+  if (task.num === 6 || task.num === 8) return 'method_choice';
+  if (task.num === 7) return 'kendall_prob';
+  return 'regression';
+}
+
 export function getDirectFields(
   task: TaskItem,
   strictNoHints = false
 ): DirectFieldSpec[] {
   const lastStep = task.steps[task.steps.length - 1];
+  const kind = resolveTaskDirectKind(task);
 
   if (strictNoHints) {
-    if (task.num === 3 && task.steps.length >= 3) {
+    if (kind === 'sampling_pair' && task.steps.length >= 3) {
       return [
         {
           key: 'd95',
@@ -37,7 +50,7 @@ export function getDirectFields(
       ];
     }
 
-    if (task.num === 4) {
+    if (kind === 'chi2_normality') {
       return [
         {
           key: 'chi2Crit',
@@ -65,19 +78,19 @@ export function getDirectFields(
         placeholder: 'Введите ответ',
         ans: lastStep.ans,
         tolerance:
-          task.num === 1
+          kind === 'trend' || kind === 'regression'
             ? lastStep.numericTolerance ?? 0.5
-            : task.num === 2
+            : kind === 'eta2'
             ? lastStep.numericTolerance ?? 0.05
-            : task.num === 5
+            : kind === 'normal_share'
             ? lastStep.numericTolerance ?? 0.15
             : lastStep.numericTolerance ?? 0.02,
-        isNumeric: ![6, 8].includes(task.num),
+        isNumeric: kind !== 'method_choice',
       },
     ];
   }
 
-  if (task.num === 1) {
+  if (kind === 'trend') {
     return [
       {
         key: 'main',
@@ -90,7 +103,7 @@ export function getDirectFields(
     ];
   }
 
-  if (task.num === 2) {
+  if (kind === 'eta2') {
     return [
       {
         key: 'main',
@@ -103,7 +116,7 @@ export function getDirectFields(
     ];
   }
 
-  if (task.num === 3 && task.steps.length >= 3) {
+  if (kind === 'sampling_pair' && task.steps.length >= 3) {
     return [
       {
         key: 'd95',
@@ -124,7 +137,20 @@ export function getDirectFields(
     ];
   }
 
-  if (task.num === 4) {
+  if (kind === 'sampling_single') {
+    return [
+      {
+        key: 'main',
+        label: 'Погрешность Δ для 95,4% (t = 2):',
+        placeholder: 'Введите десятичное число',
+        ans: lastStep.ans,
+        tolerance: lastStep.numericTolerance ?? 0.02,
+        isNumeric: true,
+      },
+    ];
+  }
+
+  if (kind === 'chi2_normality') {
     return [
       {
         key: 'chi2Crit',
@@ -145,7 +171,7 @@ export function getDirectFields(
     ];
   }
 
-  if (task.num === 5) {
+  if (kind === 'normal_share') {
     return [
       {
         key: 'main',
@@ -158,16 +184,16 @@ export function getDirectFields(
     ];
   }
 
-  if (task.num === 6 || task.num === 8) {
+  if (kind === 'method_choice') {
     return [
       {
         key: 'main',
         label:
-          task.num === 6
+          task.num === 5 || task.num === 6
             ? 'Критерий / коэффициент для оценки связи:'
             : 'Подходящий метод анализа или коэффициент:',
         placeholder:
-          task.num === 6
+          task.num === 5 || task.num === 6
             ? 'Введите название критерия или коэффициента'
             : 'Введите название метода или коэффициента',
         ans: lastStep.ans,
@@ -177,7 +203,7 @@ export function getDirectFields(
     ];
   }
 
-  if (task.num === 7) {
+  if (kind === 'kendall_prob') {
     return [
       {
         key: 'main',
@@ -193,10 +219,10 @@ export function getDirectFields(
   return [
     {
       key: 'main',
-      label: 'Итоговый ответ:',
+      label: 'Итоговый прогноз по регрессии (руб.):',
       placeholder: 'Введите итоговое значение',
       ans: lastStep.ans,
-      tolerance: lastStep.numericTolerance ?? 0.02,
+      tolerance: lastStep.numericTolerance ?? 0.5,
       isNumeric: true,
     },
   ];

@@ -3,6 +3,7 @@ export type AppTab =
   | 'direct'
   | 'drill'
   | 'time_t'
+  | 'correlation'
   | 'formulas'
   | 'compare'
   | 'df_lab'
@@ -12,7 +13,24 @@ export type AppTab =
   | 'stats'
   | 'glossary';
 
-export type VariantSource = 'v1' | 'v3' | 'generated';
+export type VariantSource =
+  | 'v1'
+  | 'v1_stepanov'
+  | 'v3'
+  | 'v3_new'
+  | 'v3_avdeeva'
+  | 'generated';
+
+export type TaskDirectKind =
+  | 'trend'
+  | 'eta2'
+  | 'sampling_pair'
+  | 'sampling_single'
+  | 'chi2_normality'
+  | 'normal_share'
+  | 'method_choice'
+  | 'kendall_prob'
+  | 'regression';
 
 export type FormulaBlockId =
   | 'descriptive'
@@ -76,11 +94,13 @@ export interface TaskStep {
   placeholder?: string;
   quickChoices?: string[];
   numericTolerance?: number;
+  formulaTex?: string;
 }
 
 export interface TaskItem {
   id: string;
   num: number;
+  directKind?: TaskDirectKind;
   title: string;
   points: string;
   pointsNum: number;
@@ -106,6 +126,7 @@ export interface TestQuestion {
   points: number;
   question: string;
   examQuestion?: string;
+  formulaTex?: string;
   options: TestOption[];
 }
 

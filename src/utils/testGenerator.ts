@@ -24,7 +24,8 @@ function makeCard(
   variants: string,
   topic: TestQuestion['topic'],
   question: string,
-  options: TestOption[]
+  options: TestOption[],
+  formulaTex?: string
 ): TestQuestion {
   return {
     id: `${idPrefix}_${Math.random().toString(36).slice(2, 7)}`,
@@ -32,6 +33,7 @@ function makeCard(
     topic,
     points: 2,
     question,
+    formulaTex,
     options: shuffle(options),
   };
 }
@@ -92,7 +94,8 @@ export function generateProceduralTestDeck(count: 4 | 8 = 4): TestQuestion[] {
             explain:
               'Неверно: от выборки не зависит [[дисперсия]] генеральной совокупности, а вот ошибка выборки $\\Delta$ напрямую зависит от $n$.',
           },
-        ]
+        ],
+        '\\Delta = t \\cdot \\frac{\\sigma}{\\sqrt{n}}'
       );
     },
 
@@ -123,7 +126,8 @@ export function generateProceduralTestDeck(count: 4 | 8 = 4): TestQuestion[] {
             explain:
               'Неверно: [[дисперсия]] генеральной совокупности от объёма выборки $n$ не зависит.',
           },
-        ]
+        ],
+        '\\Delta = t \\cdot \\frac{\\sigma}{\\sqrt{n}}, \\qquad n = \\frac{t^2 \\cdot \\sigma^2}{\\Delta^2}'
       );
     },
 
@@ -160,7 +164,8 @@ export function generateProceduralTestDeck(count: 4 | 8 = 4): TestQuestion[] {
             explain:
               'Неверно: коэффициент Спирмена применяется для порядковых (ранговых) шкал, а не для номинальных дихотомий.',
           },
-        ]
+        ],
+        'K_a = \\frac{ad - bc}{ad + bc}, \\qquad K_k = \\frac{ad - bc}{\\sqrt{(a+b)(c+d)(a+c)(b+d)}}'
       );
     },
 
@@ -196,7 +201,8 @@ export function generateProceduralTestDeck(count: 4 | 8 = 4): TestQuestion[] {
               explain:
                 'Ловушка! $0{,}05$ — это [[уровень значимости]] ($p$), а не коэффициент доверия $t$ в формуле $\\Delta$.',
             },
-          ]
+          ],
+          '\\Delta = t \\cdot \\frac{\\sigma}{\\sqrt{n}} \\quad (t=1 \\to 68{,}3\\%;\\; t=2 \\to 95{,}4\\%;\\; t=3 \\to 99{,}7\\%)'
         );
       }
 
@@ -224,7 +230,8 @@ export function generateProceduralTestDeck(count: 4 | 8 = 4): TestQuestion[] {
             explain:
               'Неверно: $n$ — это число опрошенных респондентов.',
           },
-        ]
+        ],
+        '\\Delta = t \\cdot \\frac{\\sigma}{\\sqrt{n}} \\quad (t=1 \\to 68{,}3\\%;\\; t=2 \\to 95{,}4\\%;\\; t=3 \\to 99{,}7\\%)'
       );
     },
 
@@ -290,7 +297,10 @@ export function generateProceduralTestDeck(count: 4 | 8 = 4): TestQuestion[] {
             isCorrect: false,
             explain: boundCase.explainWrong2,
           },
-        ]
+        ],
+        boundCase.name.includes('Кендалла')
+          ? '\\tau = \\frac{P - Q}{\\frac{1}{2}n(n - 1)} \\in [-1; +1]'
+          : 'r = \\frac{\\sum (x - \\bar{x})(y - \\bar{y})}{\\sqrt{\\sum (x - \\bar{x})^2 \\cdot \\sum (y - \\bar{y})^2}} \\in [-1; +1]'
       );
     },
 
@@ -359,7 +369,12 @@ export function generateProceduralTestDeck(count: 4 | 8 = 4): TestQuestion[] {
             isCorrect: false,
             explain: scaleScenario.explainWrong2,
           },
-        ]
+        ],
+        scaleScenario.correct.includes('Пирсона')
+          ? 'r = \\frac{\\sum (x - \\bar{x})(y - \\bar{y})}{\\sqrt{\\sum (x - \\bar{x})^2 \\cdot \\sum (y - \\bar{y})^2}}'
+          : scaleScenario.correct.includes('Кендалла')
+          ? '\\tau = \\frac{P - Q}{\\frac{1}{2}n(n - 1)}'
+          : '\\eta^2 = \\frac{\\delta^2_{\\text{меж}}}{\\sigma^2_{\\text{общ}}} = \\frac{\\sigma^2_{\\text{общ}} - \\overline{\\sigma^2_{\\text{внутр}}}}{\\sigma^2_{\\text{общ}}}'
       );
     },
 
@@ -395,7 +410,8 @@ export function generateProceduralTestDeck(count: 4 | 8 = 4): TestQuestion[] {
               isCorrect: false,
               explain: `Степени свободы $df = ${df}$ найдены верно, но вывод перепутан! Нормальность подтверждается, когда $\\chi^2_{\\text{эмп}} < \\chi^2_{\\text{табл}}$, и отвергается при $\\chi^2_{\\text{эмп}} > \\chi^2_{\\text{табл}}$.`,
             },
-          ]
+          ],
+          'df = k - 3, \\qquad \\chi^2_{\\text{эмп}} < \\chi^2_{\\text{табл}} \\;\\Rightarrow\\; \\text{норма}'
         );
       }
 
@@ -423,7 +439,8 @@ export function generateProceduralTestDeck(count: 4 | 8 = 4): TestQuestion[] {
             isCorrect: false,
             explain: `Неверно: $${r} \\times ${c} = ${r * c}$ — это просто общее количество ячеек таблицы, без вычета связей.`,
           },
-        ]
+        ],
+        'df = (r - 1)(c - 1)'
       );
     },
 
@@ -458,7 +475,8 @@ export function generateProceduralTestDeck(count: 4 | 8 = 4): TestQuestion[] {
             explain:
               'Неверно: само значение $\\tau = P - Q$ является разностью вероятностей, а не отдельной вероятностью.',
           },
-        ]
+        ],
+        isUp ? 'P = \\frac{1 + \\tau}{2}' : 'Q = \\frac{1 - \\tau}{2}'
       );
     },
 
@@ -497,7 +515,8 @@ export function generateProceduralTestDeck(count: 4 | 8 = 4): TestQuestion[] {
             explain:
               'Неверно: выбирается единственная модель с наименьшей ошибкой $S_y$.',
           },
-        ]
+        ],
+        '\\min(S_y) \\;\\Rightarrow\\; \\hat{y}(t)'
       );
     },
   ];

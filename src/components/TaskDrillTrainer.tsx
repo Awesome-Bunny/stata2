@@ -7,8 +7,8 @@ import {
   ChevronDown,
   ChevronUp,
   Dices,
+  Eye,
   Flame,
-  HelpCircle,
   Layers,
   NotebookPen,
   Plus,
@@ -24,6 +24,7 @@ import {
 import { FORMULAS_DATA } from '../data/formulasData';
 import { CHI2_TABLE, TASKS_DATA, TEST_QUESTIONS_BANK } from '../data/nasledovData';
 import { MistakeItem, TaskItem, TaskStep, TestQuestion } from '../types/stats';
+import { getDirectFields, resolveTaskDirectKind } from '../utils/directFields';
 import { generateSingleTask } from '../utils/taskGenerator';
 import { generateTestQuestionByNum } from '../utils/testGenerator';
 import { stableShuffle, validateStepAnswer } from '../utils/validation';
@@ -74,9 +75,9 @@ const TASK_CATALOG: TaskMeta[] = [
 ];
 
 const BANK_TEST_IDS_BY_NUM: Record<10 | 11 | 12 | 13, string[]> = {
-  10: ['q10_both', 'q_models_sy', 'q_chi2_rule'],
+  10: ['q10_both', 'q10_avdeeva', 'q_models_sy', 'q_chi2_rule'],
   11: ['q11_both', 'q_df_bonus2', 'q_scales_anova_vs_chi'],
-  12: ['q12_v1', 'q12_v3', 'q_kendall_trap'],
+  12: ['q12_v1_stepanov', 'q12_v1', 'q12_v3', 'q_kendall_trap'],
   13: ['q13_v1', 'q13_v3', 'q_df_bonus1', 'q_three_sigma_link'],
 };
 
@@ -101,141 +102,49 @@ function loadDrillStats(): Record<number, DrillTaskStats> {
   }
 }
 
-interface DirectFieldSpec {
-  key: string;
-  label: string;
-  placeholder: string;
-  ans: string[];
-  tolerance: number;
-  isNumeric: boolean;
-}
+const V3_NEW_NUM_BY_TOPIC_NUM: Record<number, number> = {
+  1: 9,
+  2: 1,
+  3: 4,
+  4: 2,
+  5: 3,
+  6: 5,
+  7: 6,
+  8: 7,
+  9: 8,
+};
 
-function getDirectFields(task: TaskItem): DirectFieldSpec[] {
-  const lastStep = task.steps[task.steps.length - 1];
-
-  if (task.num === 1) {
-    return [
-      {
-        key: 'main',
-        label: 'Итоговый прогноз показателя (руб.):',
-        placeholder: 'Введите сумму в рублях',
-        ans: lastStep.ans,
-        tolerance: lastStep.numericTolerance ?? 0.5,
-        isNumeric: true,
-      },
-    ];
+function getStepFormulaTex(task: TaskItem, stepIdx: number): string {
+  const step = task.steps[stepIdx];
+  if (step?.formulaTex) return step.formulaTex;
+  if (task.steps.length <= 1 || stepIdx === task.steps.length - 1) {
+    return task.formulaTex;
   }
 
-  if (task.num === 2) {
-    return [
-      {
-        key: 'main',
-        label: 'Доля влияния фактора η² (%):',
-        placeholder: 'Введите число в %',
-        ans: lastStep.ans,
-        tolerance: lastStep.numericTolerance ?? 0.05,
-        isNumeric: true,
-      },
-    ];
+  const kind = resolveTaskDirectKind(task);
+  if (kind === 'trend') {
+    if (task.steps.length >= 3 && stepIdx === 0) {
+      return '\\min(S_y) \\;\\Rightarrow\\; \\text{выбор модели тренда}';
+    }
+    return 't = \\text{значение сдвига времени от центра ряда}';
   }
-
-  if (task.num === 3 && task.steps.length >= 3) {
-    return [
-      {
-        key: 'd95',
-        label: 'Погрешность Δ для 95,4% (t = 2):',
-        placeholder: 'Введите десятичное число',
-        ans: task.steps[1].ans,
-        tolerance: task.steps[1].numericTolerance ?? 0.02,
-        isNumeric: true,
-      },
-      {
-        key: 'd99',
-        label: 'Погрешность Δ для 99,7% (t = 3):',
-        placeholder: 'Введите десятичное число',
-        ans: task.steps[2].ans,
-        tolerance: task.steps[2].numericTolerance ?? 0.02,
-        isNumeric: true,
-      },
-    ];
+  if (kind === 'eta2') {
+    if (stepIdx === 0) return '\\sigma^2_{\\text{общ}} = \\sigma^2';
+    return '\\delta^2_{\\text{меж}} = \\sigma^2_{\\text{общ}} - \\overline{\\sigma^2_{\\text{внутр}}}';
   }
-
-  if (task.num === 4) {
-    return [
-      {
-        key: 'chi2Crit',
-        label: 'Табличное значение χ²_табл (при p = 0,05):',
-        placeholder: 'Введите χ²_табл',
-        ans: task.steps[1]?.ans || [],
-        tolerance: task.steps[1]?.numericTolerance ?? 0.02,
-        isNumeric: true,
-      },
-      {
-        key: 'main',
-        label: 'Итоговый вывод о соответствии нормальному закону:',
-        placeholder: 'соответствует / не соответствует',
-        ans: lastStep.ans,
-        tolerance: 0.02,
-        isNumeric: false,
-      },
-    ];
+  if (kind === 'sampling_pair' || kind === 'sampling_single') {
+    if (stepIdx === 0) return 'm = \\frac{\\sigma}{\\sqrt{n}}';
+    return '\\Delta = t \\cdot m';
   }
-
-  if (task.num === 5) {
-    return [
-      {
-        key: 'main',
-        label: 'Доля респондентов (%) или вывод о невозможности оценки:',
-        placeholder: 'Введите % или слово «невозможно»',
-        ans: lastStep.ans,
-        tolerance: lastStep.numericTolerance ?? 0.15,
-        isNumeric: true,
-      },
-    ];
+  if (kind === 'chi2_normality') {
+    if (stepIdx === 0) return 'df = k - 3';
+    return '\\chi^2_{\\text{табл}}(df,\\; p = 0{,}05)';
   }
-
-  if (task.num === 6 || task.num === 8) {
-    return [
-      {
-        key: 'main',
-        label:
-          task.num === 6
-            ? 'Критерий / коэффициент для оценки связи:'
-            : 'Подходящий метод анализа или коэффициент:',
-        placeholder:
-          task.num === 6
-            ? 'Введите название критерия или коэффициента'
-            : 'Введите название метода или коэффициента',
-        ans: lastStep.ans,
-        tolerance: 0.02,
-        isNumeric: false,
-      },
-    ];
+  if (kind === 'normal_share') {
+    if (stepIdx === 0) return 'z = \\frac{x - \\bar{x}}{\\sigma}';
+    return task.formulaTex;
   }
-
-  if (task.num === 7) {
-    return [
-      {
-        key: 'main',
-        label: 'Итоговая вероятность (доля от 0 до 1 или %):',
-        placeholder: 'Введите долю или %',
-        ans: lastStep.ans,
-        tolerance: lastStep.numericTolerance ?? 0.02,
-        isNumeric: true,
-      },
-    ];
-  }
-
-  return [
-    {
-      key: 'main',
-      label: 'Итоговый ответ:',
-      placeholder: 'Введите итоговое значение',
-      ans: lastStep.ans,
-      tolerance: lastStep.numericTolerance ?? 0.02,
-      isNumeric: true,
-    },
-  ];
+  return task.formulaTex;
 }
 
 export const TaskDrillTrainer: React.FC<TaskDrillTrainerProps> = ({
@@ -249,7 +158,7 @@ export const TaskDrillTrainer: React.FC<TaskDrillTrainerProps> = ({
   onTestResult,
 }) => {
   const [selectedNum, setSelectedNum] = useState<number>(initialTaskNum);
-  const [calcSource, setCalcSource] = useState<'generated' | 'v1' | 'v3'>('generated');
+  const [calcSource, setCalcSource] = useState<'generated' | 'v1_stepanov' | 'v1' | 'v3' | 'v3_new' | 'v3_avdeeva'>('generated');
   const [solveMode, setSolveMode] = useState<'steps' | 'direct'>('steps');
   const [testSource, setTestSource] = useState<'generated' | 'bank'>('generated');
 
@@ -272,6 +181,7 @@ export const TaskDrillTrainer: React.FC<TaskDrillTrainerProps> = ({
   const [directScratch, setDirectScratch] = useState<string[]>(['', '', '']);
   const [directResult, setDirectResult] = useState<{
     isCorrect: boolean;
+    isRevealed?: boolean;
     expectedDisplay: string;
     message: string;
   } | null>(null);
@@ -287,6 +197,7 @@ export const TaskDrillTrainer: React.FC<TaskDrillTrainerProps> = ({
   );
   const [bankIndex, setBankIndex] = useState(0);
   const [pickedTestOption, setPickedTestOption] = useState<number | null>(null);
+  const [revealedTestAnswer, setRevealedTestAnswer] = useState(false);
 
   useEffect(() => {
     try {
@@ -307,6 +218,7 @@ export const TaskDrillTrainer: React.FC<TaskDrillTrainerProps> = ({
     setDirectResult(null);
     setShowDirectSolution(false);
     setPickedTestOption(null);
+    setRevealedTestAnswer(false);
   };
 
   const selectTaskNumber = (num: number) => {
@@ -332,11 +244,21 @@ export const TaskDrillTrainer: React.FC<TaskDrillTrainerProps> = ({
 
   const activeCalcTask: TaskItem | null = useMemo(() => {
     if (selectedNum > 9) return null;
+    if (calcSource === 'v1_stepanov') {
+      return TASKS_DATA.v1_stepanov.find((t) => t.num === selectedNum) || genTask;
+    }
     if (calcSource === 'v1') {
       return TASKS_DATA.v1.find((t) => t.num === selectedNum) || genTask;
     }
     if (calcSource === 'v3') {
       return TASKS_DATA.v3.find((t) => t.num === selectedNum) || genTask;
+    }
+    if (calcSource === 'v3_new') {
+      const targetNum = V3_NEW_NUM_BY_TOPIC_NUM[selectedNum] || selectedNum;
+      return TASKS_DATA.v3_new.find((t) => t.num === targetNum) || genTask;
+    }
+    if (calcSource === 'v3_avdeeva') {
+      return TASKS_DATA.v3_avdeeva.find((t) => t.num === selectedNum) || genTask;
     }
     return genTask;
   }, [selectedNum, calcSource, genTask]);
@@ -413,7 +335,17 @@ export const TaskDrillTrainer: React.FC<TaskDrillTrainerProps> = ({
         }
         setGenTask(next);
       } else {
-        setCalcSource((prev) => (prev === 'v1' ? 'v3' : 'v1'));
+        setCalcSource((prev) =>
+          prev === 'v1_stepanov'
+            ? 'v1'
+            : prev === 'v1'
+            ? 'v3_avdeeva'
+            : prev === 'v3_avdeeva'
+            ? 'v3_new'
+            : prev === 'v3_new'
+            ? 'v3'
+            : 'v1_stepanov'
+        );
       }
     } else {
       if (testSource === 'generated') {
@@ -457,7 +389,7 @@ export const TaskDrillTrainer: React.FC<TaskDrillTrainerProps> = ({
         ...prev,
         [step.id]: {
           status: 'ok',
-          message: `Верно! ${step.hint}`,
+          message: `Верно! ${step.ans[0]}`,
         },
       }));
       onRecordAttempt('steps', true, calcSource === 'generated');
@@ -472,13 +404,23 @@ export const TaskDrillTrainer: React.FC<TaskDrillTrainerProps> = ({
         ...prev,
         [step.id]: {
           status: 'err',
-          message:
-            'Пока неверно. Проверьте формулу, знаки или откройте подсказку.',
+          message: 'Неверно. Проверьте расчёт или нажмите «Показать ответ».',
         },
       }));
       onRecordAttempt('steps', false, calcSource === 'generated');
       bumpDrillStat(false, false);
     }
+  };
+
+  const formatDirectExpected = (task: TaskItem) => {
+    const fields = getDirectFields(task);
+    const taskKind = resolveTaskDirectKind(task);
+    if (fields.length === 2) {
+      return taskKind === 'chi2_normality'
+        ? `χ²_табл = ${fields[0].ans[0]} · ${fields[1].ans[0]}`
+        : `Δ(95,4%) = ${fields[0].ans[0]} · Δ(99,7%) = ${fields[1].ans[0]}`;
+    }
+    return fields[0].ans[0];
   };
 
   const handleCheckDirect = (task: TaskItem) => {
@@ -487,8 +429,8 @@ export const TaskDrillTrainer: React.FC<TaskDrillTrainerProps> = ({
     if (hasMissing) {
       setDirectResult({
         isCorrect: false,
-        expectedDisplay: fields.map((f) => f.ans[0]).join(' / '),
-        message: 'Заполните поле итогового ответа перед проверкой.',
+        expectedDisplay: formatDirectExpected(task),
+        message: 'Введите ответ перед проверкой.',
       });
       return;
     }
@@ -496,23 +438,16 @@ export const TaskDrillTrainer: React.FC<TaskDrillTrainerProps> = ({
     const allOk = fields.every((f) =>
       validateStepAnswer(directInputs[f.key] || '', f.ans, f.tolerance)
     );
-    const expectedDisplay =
-      fields.length === 2
-        ? task.num === 4
-          ? `χ²_табл = ${fields[0].ans[0]} · Вывод: ${fields[1].ans[0]}`
-          : `Δ(95,4%) = ${fields[0].ans[0]} · Δ(99,7%) = ${fields[1].ans[0]}`
-        : fields[0].ans[0];
+    const expectedDisplay = formatDirectExpected(task);
 
     setDirectResult({
       isCorrect: allOk,
+      isRevealed: false,
       expectedDisplay,
       message: allOk
-        ? `Верно! Итоговый ответ: ${expectedDisplay}.`
-        : `Неверно. Эталонный ответ: ${expectedDisplay}. Смотрите разбор шагов ниже.`,
+        ? `Верно! Ответ: ${expectedDisplay}`
+        : `Неверно. Правильный ответ: ${expectedDisplay}`,
     });
-    if (!allOk) {
-      setShowDirectSolution(true);
-    }
 
     onRecordAttempt('direct', allOk, calcSource === 'generated');
     if (!taskCompletedRecorded) {
@@ -521,6 +456,16 @@ export const TaskDrillTrainer: React.FC<TaskDrillTrainerProps> = ({
     } else if (!allOk) {
       bumpDrillStat(false, false);
     }
+  };
+
+  const handleRevealDirect = (task: TaskItem) => {
+    const expectedDisplay = formatDirectExpected(task);
+    setDirectResult({
+      isCorrect: true,
+      isRevealed: true,
+      expectedDisplay,
+      message: `Ответ: ${expectedDisplay}`,
+    });
   };
 
   const handlePickTestOption = (q: TestQuestion, optIdx: number) => {
@@ -560,7 +505,11 @@ export const TaskDrillTrainer: React.FC<TaskDrillTrainerProps> = ({
   const v1OrV3Task5Note =
     selectedNum === 5 && calcSource !== 'generated'
       ? calcSource === 'v1'
-        ? 'Справочно по заданию №4 Варианта 1: k = 6 интервалов, df = 3, χ²_эмп = 8,74 > χ²_табл = 7,81 (нормальность отвергнута).'
+        ? 'Справочно по заданию №4 Варианта 1 (базовый): k = 6 интервалов, df = 3, χ²_эмп = 8,74 > χ²_табл = 7,81 (нормальность отвергнута).'
+        : calcSource === 'v1_stepanov'
+        ? 'Справочно по заданию №4 Варианта 1 (печатный): k = 11 интервалов, df = 8, χ²_эмп = 5,55 < χ²_табл = 15,507 (нормальность подтверждена).'
+        : calcSource === 'v3_new'
+        ? 'Справочно по заданию №2 Варианта 3 (печатный, 2027): k = 11 интервалов, df = 8, χ²_эмп = 6,27 < χ²_табл = 15,51 (нормальность подтверждена).'
         : 'Справочно по заданию №4 Варианта 3: k = 14 интервалов, df = 11, χ²_эмп = 6,27 < χ²_табл = 19,68 (нормальность подтверждена).'
       : null;
 
@@ -575,11 +524,10 @@ export const TaskDrillTrainer: React.FC<TaskDrillTrainerProps> = ({
               <span>Прицельная отработка одного номера · Задания №1–13</span>
             </div>
             <h2 className="text-xl font-bold text-[#0F172A]">
-              Зубрёжка конкретного задания до автоматизма
+              Зубрёжка задания №{selectedNum}
             </h2>
-            <p className="text-sm text-[#475569] mt-1">
-              Выберите любой номер экзамена №1–13, решайте бесконечные вариации
-              чисел или эталоны билетов и держите формулу перед глазами.
+            <p className="text-sm text-[#475569] mt-0.5">
+              Билеты и генератор чисел · формула открывается вместе с ответом.
             </p>
           </div>
 
@@ -683,8 +631,11 @@ export const TaskDrillTrainer: React.FC<TaskDrillTrainerProps> = ({
                   {(
                     [
                       { id: 'generated', label: 'Генератор' },
-                      { id: 'v1', label: 'Вариант 1' },
-                      { id: 'v3', label: 'Вариант 3' },
+                      { id: 'v1_stepanov', label: 'В1 (печатный)' },
+                      { id: 'v1', label: 'В1 (базовый)' },
+                      { id: 'v3_avdeeva', label: 'В3 (печатный, 2026)' },
+                      { id: 'v3_new', label: 'В3 (печатный, 2027)' },
+                      { id: 'v3', label: 'В3 (текстовый)' },
                     ] as const
                   ).map((src) => (
                     <button
@@ -741,6 +692,7 @@ export const TaskDrillTrainer: React.FC<TaskDrillTrainerProps> = ({
                   onClick={() => {
                     setTestSource('generated');
                     setPickedTestOption(null);
+                    setRevealedTestAnswer(false);
                   }}
                   className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
                     testSource === 'generated'
@@ -749,13 +701,14 @@ export const TaskDrillTrainer: React.FC<TaskDrillTrainerProps> = ({
                   }`}
                 >
                   <Dices className="w-3.5 h-3.5" />
-                  <span>Новые сгенерированные</span>
+                  <span>Генератор</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => {
                     setTestSource('bank');
                     setPickedTestOption(null);
+                    setRevealedTestAnswer(false);
                   }}
                   className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
                     testSource === 'bank'
@@ -763,7 +716,7 @@ export const TaskDrillTrainer: React.FC<TaskDrillTrainerProps> = ({
                       : 'text-[#64748B] hover:text-[#0F172A]'
                   }`}
                 >
-                  Вопросы из билетов
+                  Из билетов
                 </button>
               </div>
             )}
@@ -1050,42 +1003,73 @@ export const TaskDrillTrainer: React.FC<TaskDrillTrainerProps> = ({
                           }
                           className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-white text-[#475569] border border-[#CBD5E1] hover:bg-[#F1F5F9] transition-colors cursor-pointer"
                         >
-                          <HelpCircle className="w-4 h-4" />
-                          <span>{showHint ? 'Скрыть' : 'Подсказка'}</span>
+                          <Eye className="w-4 h-4" />
+                          <span>{showHint ? 'Скрыть ответ' : 'Показать ответ'}</span>
                         </button>
                       </div>
 
                       {fb && (
                         <div
-                          className={`mt-2.5 p-2.5 rounded-lg text-xs flex items-start gap-2 ${
+                          className={`mt-2.5 p-2.5 rounded-lg text-xs space-y-1.5 ${
                             fb.status === 'ok'
                               ? 'bg-[#DCFCE7] text-[#166534] border border-[#86EFAC]'
                               : 'bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5]'
                           }`}
                         >
-                          {fb.status === 'ok' ? (
-                            <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
-                          ) : (
-                            <XCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                          <div className="flex items-start gap-2">
+                            {fb.status === 'ok' ? (
+                              <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                            ) : (
+                              <XCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                            )}
+                            <span className="font-semibold leading-relaxed">
+                              <RichTermText text={fb.message} onOpenTerm={onOpenTerm} />
+                            </span>
+                          </div>
+                          {fb.status === 'ok' && (
+                            <div className="bg-white/80 rounded-md px-3 py-1.5 border border-[#86EFAC]/60 overflow-x-auto">
+                              <MathFormula
+                                tex={getStepFormulaTex(activeCalcTask, sIdx)}
+                                displayMode
+                              />
+                            </div>
                           )}
-                          <span className="leading-relaxed">
-                            <RichTermText text={fb.message} onOpenTerm={onOpenTerm} />
-                          </span>
                         </div>
                       )}
 
                       {showHint && (
-                        <div className="mt-2.5 p-2.5 rounded-lg bg-[#EFF6FF] border border-[#BFDBFE] text-xs text-[#1E3A8A] leading-relaxed">
-                          <span className="font-semibold">Алгоритм шага: </span>
-                          <RichTermText text={step.hint} onOpenTerm={onOpenTerm} />{' '}
-                          <span className="font-mono font-semibold text-[#1D4ED8]">
-                            (Эталон: {step.ans[0]})
-                          </span>
+                        <div className="mt-2.5 p-2.5 rounded-lg bg-[#EFF6FF] border border-[#BFDBFE] text-xs text-[#1E3A8A] space-y-1.5">
+                          <div className="flex flex-wrap items-baseline justify-between gap-2">
+                            <span className="font-mono font-bold text-[#1D4ED8]">
+                              Ответ: {step.ans[0]}
+                            </span>
+                            <span className="text-[#334155]">
+                              <RichTermText text={step.hint} onOpenTerm={onOpenTerm} />
+                            </span>
+                          </div>
+                          <div className="bg-white rounded-md px-3 py-1.5 border border-[#BFDBFE] overflow-x-auto">
+                            <MathFormula
+                              tex={getStepFormulaTex(activeCalcTask, sIdx)}
+                              displayMode
+                            />
+                          </div>
                         </div>
                       )}
                     </div>
                   );
                 })}
+
+                {activeCalcTask.steps.every((s) => Boolean(solvedStepsLocal[s.id])) && (
+                  <div className="p-3.5 rounded-lg bg-[#F0FDF4] border border-[#86EFAC] space-y-2">
+                    <div className="flex items-center gap-2 text-xs font-bold text-[#166534]">
+                      <CheckCircle2 className="w-4 h-4 text-[#059669]" />
+                      <span>Задание решено · Основная формула:</span>
+                    </div>
+                    <div className="bg-white rounded-md px-3 py-2 border border-[#BBF7D0] overflow-x-auto">
+                      <MathFormula tex={activeCalcTask.formulaTex} displayMode />
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               /* Direct Mode (Только ответ) */
@@ -1220,13 +1204,23 @@ export const TaskDrillTrainer: React.FC<TaskDrillTrainerProps> = ({
                       </div>
 
                       <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                        <button
-                          type="button"
-                          onClick={() => handleCheckDirect(activeCalcTask)}
-                          className="px-4 py-2 rounded-lg bg-[#1D4ED8] hover:bg-[#1E40AF] text-white text-xs font-semibold transition-colors cursor-pointer"
-                        >
-                          Проверить ответ
-                        </button>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleCheckDirect(activeCalcTask)}
+                            className="px-4 py-2 rounded-lg bg-[#1D4ED8] hover:bg-[#1E40AF] text-white text-xs font-semibold transition-colors cursor-pointer"
+                          >
+                            Проверить ответ
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRevealDirect(activeCalcTask)}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-[#CBD5E1] hover:bg-[#F1F5F9] text-[#334155] text-xs font-semibold transition-colors cursor-pointer"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>Показать ответ</span>
+                          </button>
+                        </div>
 
                         {directResult && (
                           <button
@@ -1237,8 +1231,8 @@ export const TaskDrillTrainer: React.FC<TaskDrillTrainerProps> = ({
                             <BookOpen className="w-3.5 h-3.5" />
                             <span>
                               {showDirectSolution
-                                ? 'Скрыть разбор'
-                                : 'Показать разбор'}
+                                ? 'Скрыть шаги'
+                                : 'По шагам'}
                             </span>
                             {showDirectSolution ? (
                               <ChevronUp className="w-3.5 h-3.5" />
@@ -1254,42 +1248,48 @@ export const TaskDrillTrainer: React.FC<TaskDrillTrainerProps> = ({
 
                 {directResult && (
                   <div
-                    className={`p-3.5 rounded-lg border flex items-start gap-2.5 text-sm ${
-                      directResult.isCorrect
+                    className={`p-3.5 rounded-lg border space-y-2.5 text-sm ${
+                      directResult.isRevealed
+                        ? 'bg-[#EFF6FF] border-[#BFDBFE] text-[#1E3A8A]'
+                        : directResult.isCorrect
                         ? 'bg-[#F0FDF4] border-[#BBF7D0] text-[#065F46]'
                         : 'bg-[#FEF2F2] border-[#FECACA] text-[#991B1B]'
                     }`}
                   >
-                    {directResult.isCorrect ? (
-                      <CheckCircle2 className="w-4 h-4 text-[#059669] shrink-0 mt-0.5" />
-                    ) : (
-                      <XCircle className="w-4 h-4 text-[#DC2626] shrink-0 mt-0.5" />
-                    )}
-                    <div className="leading-relaxed">
-                      <RichTermText
-                        text={directResult.message}
-                        onOpenTerm={onOpenTerm}
-                      />
+                    <div className="flex items-start gap-2">
+                      {directResult.isRevealed ? (
+                        <Sigma className="w-4 h-4 text-[#1D4ED8] shrink-0 mt-0.5" />
+                      ) : directResult.isCorrect ? (
+                        <CheckCircle2 className="w-4 h-4 text-[#059669] shrink-0 mt-0.5" />
+                      ) : (
+                        <XCircle className="w-4 h-4 text-[#DC2626] shrink-0 mt-0.5" />
+                      )}
+                      <div className="font-semibold leading-snug">
+                        <RichTermText
+                          text={directResult.message}
+                          onOpenTerm={onOpenTerm}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded-md px-3 py-2 border border-[#CBD5E1]/70 overflow-x-auto">
+                      <MathFormula tex={activeCalcTask.formulaTex} displayMode />
                     </div>
                   </div>
                 )}
 
                 {directResult && showDirectSolution && (
-                  <div className="p-4 rounded-lg bg-[#F8FAFC] border border-[#CBD5E1] space-y-2.5">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-xs font-bold uppercase tracking-wider text-[#334155]">
-                        Разбор решения
-                      </span>
-                      <MathFormula tex={activeCalcTask.formulaTex} />
+                  <div className="p-3.5 rounded-lg bg-[#F8FAFC] border border-[#CBD5E1] space-y-1.5">
+                    <div className="text-xs font-bold uppercase tracking-wider text-[#334155]">
+                      Ход решения
                     </div>
-                    <ul className="space-y-1 text-sm text-[#1E293B] list-disc pl-5">
+                    <ul className="space-y-1 text-xs text-[#1E293B] list-disc pl-5">
                       {activeCalcTask.steps.map((s) => (
                         <li key={s.id}>
-                          <span className="font-medium">
-                            <RichTermText text={s.label} onOpenTerm={onOpenTerm} />
-                          </span>{' '}
+                          <span className="font-semibold">{s.ans[0]}</span>
                           <span className="text-[#475569]">
-                            — <RichTermText text={s.hint} onOpenTerm={onOpenTerm} />
+                            {' — '}
+                            <RichTermText text={s.hint} onOpenTerm={onOpenTerm} />
                           </span>
                         </li>
                       ))}
@@ -1317,7 +1317,7 @@ export const TaskDrillTrainer: React.FC<TaskDrillTrainerProps> = ({
             <div className="space-y-2">
               {activeTestQuestion.options.map((opt, idx) => {
                 const isPicked = pickedTestOption === idx;
-                const revealed = pickedTestOption !== null;
+                const revealed = pickedTestOption !== null || revealedTestAnswer;
                 let style =
                   'bg-[#F8FAFC] border-[#CBD5E1] text-[#1E293B] hover:bg-[#EFF6FF] hover:border-[#93C5FD]';
                 if (revealed) {
@@ -1349,27 +1349,62 @@ export const TaskDrillTrainer: React.FC<TaskDrillTrainerProps> = ({
               })}
             </div>
 
-            {pickedTestOption !== null && (
+            {pickedTestOption === null && !revealedTestAnswer && (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setRevealedTestAnswer(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-[#CBD5E1] hover:bg-[#F1F5F9] text-[#334155] text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>Показать ответ и формулу</span>
+                </button>
+              </div>
+            )}
+
+            {(pickedTestOption !== null || revealedTestAnswer) && (
               <div
-                className={`p-3.5 rounded-lg border text-xs flex items-start gap-2.5 leading-relaxed ${
-                  activeTestQuestion.options[pickedTestOption]?.isCorrect
+                className={`p-3.5 rounded-lg border text-xs space-y-2 ${
+                  pickedTestOption === null
+                    ? 'bg-[#EFF6FF] border-[#BFDBFE] text-[#1E3A8A]'
+                    : activeTestQuestion.options[pickedTestOption]?.isCorrect
                     ? 'bg-[#DCFCE7] border-[#86EFAC] text-[#166534]'
                     : 'bg-[#FEE2E2] border-[#FCA5A5] text-[#991B1B]'
                 }`}
               >
-                {activeTestQuestion.options[pickedTestOption]?.isCorrect ? (
-                  <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
-                ) : (
-                  <XCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                )}
-                <div>
-                  <RichTermText
-                    text={
-                      activeTestQuestion.options[pickedTestOption]?.explain || ''
-                    }
-                    onOpenTerm={onOpenTerm}
-                  />
+                <div className="flex items-start gap-2 leading-snug">
+                  {pickedTestOption === null ? (
+                    <Sigma className="w-4 h-4 text-[#1D4ED8] shrink-0 mt-0.5" />
+                  ) : activeTestQuestion.options[pickedTestOption]?.isCorrect ? (
+                    <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                  ) : (
+                    <XCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  )}
+                  <div className="space-y-1">
+                    <div className="font-semibold">
+                      {pickedTestOption === null
+                        ? `Ответ: ${activeTestQuestion.options.find((o) => o.isCorrect)?.text || ''}`
+                        : activeTestQuestion.options[pickedTestOption]?.isCorrect
+                        ? 'Верно!'
+                        : `Неверно. Ответ: ${activeTestQuestion.options.find((o) => o.isCorrect)?.text || ''}`}
+                    </div>
+                    <div className="opacity-90">
+                      <RichTermText
+                        text={
+                          pickedTestOption !== null
+                            ? activeTestQuestion.options[pickedTestOption]?.explain || ''
+                            : activeTestQuestion.options.find((o) => o.isCorrect)?.explain || ''
+                        }
+                        onOpenTerm={onOpenTerm}
+                      />
+                    </div>
+                  </div>
                 </div>
+                {activeTestQuestion.formulaTex && (
+                  <div className="bg-white rounded-md px-3 py-2 border border-[#CBD5E1]/70 overflow-x-auto">
+                    <MathFormula tex={activeTestQuestion.formulaTex} displayMode />
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1380,13 +1415,21 @@ export const TaskDrillTrainer: React.FC<TaskDrillTrainerProps> = ({
           <div className="text-xs text-[#64748B]">
             {selectedNum <= 9
               ? calcSource === 'generated'
-                ? 'Нажмите «Следующий вариант», чтобы получить новые числа для №' +
-                  selectedNum
-                : `Режим эталона (${calcSource === 'v1' ? 'Вариант 1' : 'Вариант 3'}). Переключитесь на Генератор для бесконечных вариаций.`
+                ? `Генератор чисел · №${selectedNum}`
+                : `Эталон: ${
+                    calcSource === 'v1_stepanov'
+                      ? 'В1 (печатный)'
+                      : calcSource === 'v1'
+                      ? 'В1 (базовый)'
+                      : calcSource === 'v3_avdeeva'
+                      ? 'В3 (2026)'
+                      : calcSource === 'v3_new'
+                      ? 'В3 (2027)'
+                      : 'В3 (текст)'
+                  }`
               : testSource === 'generated'
-              ? 'Каждый клик генерирует новый вариант тестового задания №' +
-                selectedNum
-              : `Вопрос ${(bankIndex % Math.max(1, bankQuestionsForNum.length)) + 1} из ${bankQuestionsForNum.length} в банке для №${selectedNum}`}
+              ? `Генератор тестов · №${selectedNum}`
+              : `Банк №${selectedNum}: ${(bankIndex % Math.max(1, bankQuestionsForNum.length)) + 1}/${bankQuestionsForNum.length}`}
           </div>
 
           <button
@@ -1399,9 +1442,15 @@ export const TaskDrillTrainer: React.FC<TaskDrillTrainerProps> = ({
               {selectedNum <= 9
                 ? calcSource === 'generated'
                   ? `Следующий вариант №${selectedNum}`
+                  : calcSource === 'v1_stepanov'
+                  ? `Переключить на В1 (базовый)`
                   : calcSource === 'v1'
-                  ? `Переключить на Вариант 3 (№${selectedNum})`
-                  : `Переключить на Вариант 1 (№${selectedNum})`
+                  ? `Переключить на В3 (2026)`
+                  : calcSource === 'v3_avdeeva'
+                  ? `Переключить на В3 (2027)`
+                  : calcSource === 'v3_new'
+                  ? `Переключить на В3 (текстовый)`
+                  : `Переключить на В1 (печатный)`
                 : `Следующий вопрос №${selectedNum}`}
             </span>
           </button>

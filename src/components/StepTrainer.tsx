@@ -9,16 +9,21 @@ import {
   Sparkles,
   XCircle,
 } from 'lucide-react';
-import { TASKS_DATA } from '../data/nasledovData';
+import { TASKS_DATA, TEST_QUESTIONS_BANK } from '../data/nasledovData';
 import {
   GeneratedTicket,
   MistakeItem,
   TaskItem,
   TaskStep,
+  TestQuestion,
   TrainerProgressState,
   VariantSource,
 } from '../types/stats';
-import { stableShuffle, validateStepAnswer } from '../utils/validation';
+import {
+  stableIndexOrder,
+  stableShuffle,
+  validateStepAnswer,
+} from '../utils/validation';
 import { MathFormula } from './MathFormula';
 import { RichTermText } from './RichTermText';
 
@@ -70,18 +75,48 @@ export const StepTrainer: React.FC<StepTrainerProps> = ({
   const [stepFeedback, setStepFeedback] = useState<
     Record<string, { status: 'ok' | 'err'; message: string }>
   >({});
+  const [sessionTests, setSessionTests] = useState<Record<string, number>>({});
 
   const tasks: TaskItem[] = useMemo(() => {
     if (variant === 'v1') return TASKS_DATA.v1;
+    if (variant === 'v1_stepanov') return TASKS_DATA.v1_stepanov;
     if (variant === 'v3') return TASKS_DATA.v3;
+    if (variant === 'v3_new') return TASKS_DATA.v3_new;
+    if (variant === 'v3_avdeeva') return TASKS_DATA.v3_avdeeva;
     return generatedTicket.tasks;
+  }, [variant, generatedTicket]);
+
+  const variantTests: TestQuestion[] = useMemo(() => {
+    if (variant === 'v1') {
+      const ids = ['q10_both', 'q11_both', 'q12_v1', 'q13_v1'];
+      return TEST_QUESTIONS_BANK.filter((q) => ids.includes(q.id));
+    }
+    if (variant === 'v1_stepanov') {
+      const ids = ['q10_avdeeva', 'q11_both', 'q12_v1_stepanov', 'q13_v1'];
+      return TEST_QUESTIONS_BANK.filter((q) => ids.includes(q.id));
+    }
+    if (variant === 'v3' || variant === 'v3_new') {
+      const ids = ['q10_both', 'q11_both', 'q12_v3', 'q13_v3'];
+      return TEST_QUESTIONS_BANK.filter((q) => ids.includes(q.id));
+    }
+    if (variant === 'v3_avdeeva') {
+      const ids = ['q10_avdeeva', 'q11_both', 'q12_v3', 'q13_v3'];
+      return TEST_QUESTIONS_BANK.filter((q) => ids.includes(q.id));
+    }
+    return generatedTicket.tests;
   }, [variant, generatedTicket]);
 
   const variantLabel =
     variant === 'v1'
-      ? 'Вариант 1'
+      ? 'Вариант 1 (базовый)'
+      : variant === 'v1_stepanov'
+      ? 'Вариант 1 (печатный)'
       : variant === 'v3'
-      ? 'Вариант 3'
+      ? 'Вариант 3 (текстовый)'
+      : variant === 'v3_new'
+      ? 'Вариант 3 (печатный, 2027)'
+      : variant === 'v3_avdeeva'
+      ? 'Вариант 3 (печатный, 2026)'
       : `Генератор (${generatedTicket.seedLabel})`;
 
   const mistakeCount = Object.keys(progress.mistakes).length;
@@ -158,7 +193,7 @@ export const StepTrainer: React.FC<StepTrainerProps> = ({
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <div className="text-xs font-semibold uppercase tracking-wider text-[#1D4ED8] mb-1">
-              Алгоритмы расчётов и шкал · Задания №1–9
+              Алгоритмы расчётов, шкал и тесты · Задания №1–13
             </div>
             <h2 className="text-xl font-bold text-[#0F172A]">
               Пошаговый тренажёр с разбором ловушек
@@ -172,6 +207,17 @@ export const StepTrainer: React.FC<StepTrainerProps> = ({
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
+              onClick={() => setVariant('v1_stepanov')}
+              className={`px-3.5 py-2 rounded-lg text-sm font-medium border transition-colors cursor-pointer ${
+                variant === 'v1_stepanov'
+                  ? 'bg-[#1D4ED8] text-white border-[#1D4ED8]'
+                  : 'bg-[#F8FAFC] text-[#334155] border-[#CBD5E1] hover:bg-[#F1F5F9]'
+              }`}
+            >
+              В1 (печатный)
+            </button>
+            <button
+              type="button"
               onClick={() => setVariant('v1')}
               className={`px-3.5 py-2 rounded-lg text-sm font-medium border transition-colors cursor-pointer ${
                 variant === 'v1'
@@ -179,7 +225,7 @@ export const StepTrainer: React.FC<StepTrainerProps> = ({
                   : 'bg-[#F8FAFC] text-[#334155] border-[#CBD5E1] hover:bg-[#F1F5F9]'
               }`}
             >
-              Вариант 1
+              В1 (базовый)
             </button>
             <button
               type="button"
@@ -190,7 +236,29 @@ export const StepTrainer: React.FC<StepTrainerProps> = ({
                   : 'bg-[#F8FAFC] text-[#334155] border-[#CBD5E1] hover:bg-[#F1F5F9]'
               }`}
             >
-              Вариант 3
+              В3 (текстовый)
+            </button>
+            <button
+              type="button"
+              onClick={() => setVariant('v3_new')}
+              className={`px-3.5 py-2 rounded-lg text-sm font-medium border transition-colors cursor-pointer ${
+                variant === 'v3_new'
+                  ? 'bg-[#1D4ED8] text-white border-[#1D4ED8]'
+                  : 'bg-[#F8FAFC] text-[#334155] border-[#CBD5E1] hover:bg-[#F1F5F9]'
+              }`}
+            >
+              В3 (печатный, 2027)
+            </button>
+            <button
+              type="button"
+              onClick={() => setVariant('v3_avdeeva')}
+              className={`px-3.5 py-2 rounded-lg text-sm font-medium border transition-colors cursor-pointer ${
+                variant === 'v3_avdeeva'
+                  ? 'bg-[#1D4ED8] text-white border-[#1D4ED8]'
+                  : 'bg-[#F8FAFC] text-[#334155] border-[#CBD5E1] hover:bg-[#F1F5F9]'
+              }`}
+            >
+              В3 (печатный, 2026)
             </button>
             <button
               type="button"
@@ -520,51 +588,101 @@ export const StepTrainer: React.FC<StepTrainerProps> = ({
         })}
       </div>
 
-      {/* Generated Tests #10-13 when in Generator mode */}
-      {variant === 'generated' && !onlyMistakes && (
+      {/* Test Section #10–13 for Active Variant */}
+      {!onlyMistakes && variantTests.length > 0 && (
         <div className="space-y-4 pt-2">
-          <div className="bg-white border border-[#E2E8F0] rounded-xl p-5">
-            <div className="text-xs font-semibold uppercase tracking-wider text-[#0284C7] mb-1">
-              Тестовая часть сгенерированного билета · Задания №10–13
+          <div className="bg-white border border-[#E2E8F0] rounded-xl p-5 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-[#1D4ED8] mb-1">
+                Тестовая часть · Задания №10–13
+              </div>
+              <h3 className="text-lg font-bold text-[#0F172A]">
+                {variant === 'generated'
+                  ? `4 контрольных тестовых вопроса для ${generatedTicket.seedLabel}`
+                  : `Тестовые задания (№10–13) — ${variantLabel}`}
+              </h3>
             </div>
-            <h3 className="text-lg font-bold text-[#0F172A]">
-              4 контрольных тестовых вопроса для {generatedTicket.seedLabel}
-            </h3>
+            {variant !== 'generated' && (
+              <button
+                type="button"
+                onClick={() => setSessionTests({})}
+                className="text-xs font-medium text-[#64748B] hover:text-[#0F172A] cursor-pointer"
+              >
+                Сбросить ответы на тесты
+              </button>
+            )}
           </div>
 
-          {generatedTicket.tests.map((q, qIdx) => {
-            const testKey = q.id.startsWith('gen_')
-              ? q.id
-              : `${generatedTicket.seedLabel}_${q.id}`;
-            const ansState = progress.answeredTests[testKey];
+          {variantTests.map((q, qIdx) => {
+            const testKey =
+              variant === 'generated'
+                ? q.id.startsWith('gen_')
+                  ? q.id
+                  : `${generatedTicket.seedLabel}_${q.id}`
+                : `${variant}_${q.id}`;
+            const savedAns =
+              variant === 'generated' ? progress.answeredTests[testKey] : undefined;
+            const localOptionIdx = sessionTests[testKey];
+            const pickedOptIdx =
+              localOptionIdx !== undefined ? localOptionIdx : savedAns?.optionIdx;
+            const isAnswered = pickedOptIdx !== undefined;
+            const pickedOpt = isAnswered ? q.options[pickedOptIdx] : null;
+            const optionIndices =
+              variant === 'generated'
+                ? q.options.map((_, i) => i)
+                : stableIndexOrder(q.options.length, q.id);
+
             return (
               <div
                 key={testKey}
                 className="bg-white border border-[#E2E8F0] rounded-xl p-5 space-y-3"
               >
-                <div className="text-xs font-medium text-[#64748B]">
-                  {q.variants} · {q.points} балла
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-medium text-[#64748B]">
+                  <span>
+                    Задание №{10 + qIdx} · {q.variants}
+                  </span>
+                  <span className="tabular-nums">{q.points} балла</span>
                 </div>
                 <h4 className="text-base font-bold text-[#0F172A]">
                   {qIdx + 10}. <RichTermText text={q.question} onOpenTerm={onOpenTerm} />
                 </h4>
                 <div className="space-y-2">
-                  {q.options.map((opt, optIdx) => {
-                    const isPicked = ansState?.optionIdx === optIdx;
+                  {optionIndices.map((origOptIdx) => {
+                    const opt = q.options[origOptIdx];
+                    const isPicked = pickedOptIdx === origOptIdx;
+                    let btnClass =
+                      'bg-[#F8FAFC] border-[#E2E8F0] text-[#1E293B] hover:bg-[#F1F5F9]';
+                    if (isAnswered) {
+                      if (opt.isCorrect) {
+                        btnClass =
+                          'bg-[#F0FDF4] border-[#16A34A] text-[#14532D] font-medium';
+                      } else if (isPicked) {
+                        btnClass =
+                          'bg-[#FEF2F2] border-[#DC2626] text-[#7F1D1D]';
+                      } else {
+                        btnClass =
+                          'bg-[#F8FAFC] border-[#E2E8F0] text-[#64748B] opacity-75';
+                      }
+                    }
+
                     return (
                       <button
-                        key={optIdx}
+                        key={origOptIdx}
                         type="button"
-                        onClick={() =>
+                        onClick={() => {
+                          setSessionTests((prev) => ({
+                            ...prev,
+                            [testKey]: origOptIdx,
+                          }));
                           onTestResult(
                             testKey,
-                            optIdx,
+                            origOptIdx,
                             opt.isCorrect,
                             opt.isCorrect
                               ? undefined
                               : {
                                   kind: 'test',
-                                  sourceLabel: q.variants,
+                                  sourceLabel: `${variantLabel} · №${10 + qIdx}`,
                                   title: `Тест №${10 + qIdx}`,
                                   prompt: q.question,
                                   correctAnswer:
@@ -574,37 +692,31 @@ export const StepTrainer: React.FC<StepTrainerProps> = ({
                                     q.options.find((o) => o.isCorrect)
                                       ?.explain || opt.explain,
                                 }
-                          )
-                        }
-                        className={`w-full text-left px-4 py-3 rounded-lg border text-sm transition-colors cursor-pointer ${
-                          isPicked
-                            ? opt.isCorrect
-                              ? 'bg-[#F0FDF4] border-[#16A34A] text-[#14532D] font-medium'
-                              : 'bg-[#FEF2F2] border-[#DC2626] text-[#7F1D1D]'
-                            : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#1E293B] hover:bg-[#F1F5F9]'
-                        }`}
+                          );
+                        }}
+                        className={`w-full text-left px-4 py-3 rounded-lg border text-sm transition-colors cursor-pointer ${btnClass}`}
                       >
                         {opt.text}
                       </button>
                     );
                   })}
                 </div>
-                {ansState !== undefined && (
+                {pickedOpt && (
                   <div
                     className={`p-3 rounded-lg text-xs flex items-start gap-2 ${
-                      ansState.isCorrect
+                      pickedOpt.isCorrect
                         ? 'bg-[#DCFCE7] text-[#166534] border border-[#86EFAC]'
                         : 'bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5]'
                     }`}
                   >
-                    {ansState.isCorrect ? (
+                    {pickedOpt.isCorrect ? (
                       <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
                     ) : (
                       <XCircle className="w-4 h-4 shrink-0 mt-0.5" />
                     )}
                     <span className="leading-relaxed">
                       <RichTermText
-                        text={q.options[ansState.optionIdx]?.explain || ''}
+                        text={pickedOpt.explain || ''}
                         onOpenTerm={onOpenTerm}
                       />
                     </span>
